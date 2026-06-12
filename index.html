@@ -9,6 +9,14 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Zilo">
+<meta name="description" content="Zilo — petites annonces au Maroc. Achète et vends près de chez toi : immobilier, voitures, multimédia, mode et plus.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Zilo">
+<meta property="og:title" content="Zilo — Petites annonces au Maroc">
+<meta property="og:description" content="Achète et vends près de chez toi. Annonces vérifiées, chat en direct, recherche par IA.">
+<meta property="og:image" content="https://militarisss.github.io/zilo/icon.svg">
+<meta property="og:url" content="https://militarisss.github.io/zilo/">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -487,6 +495,15 @@
   .reels-empty{height:100%;display:grid;place-items:center;color:#fff;text-align:center;padding:30px}
   .reels-empty p{margin-top:10px;font-size:15px;line-height:1.6}
 
+  .notif-menu{position:absolute;top:100%;right:0;margin-top:8px;width:min(320px,calc(100vw - 28px));background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:95;max-height:60vh;overflow-y:auto}
+  .nm-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
+  .nm-head b{font-size:14px} .nm-head a{font-size:12px;color:var(--accent);cursor:pointer}
+  .nm-item{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)}
+  .nm-item i{font-size:18px;color:var(--fg-faint);margin-top:2px}
+  .nm-item.unread{background:var(--accent-tint)} .nm-item.unread i{color:var(--accent)}
+  .nm-item p{font-size:13px;color:var(--fg);line-height:1.4} .nm-item small{font-size:11px;color:var(--fg-faint)}
+  .nm-empty{padding:24px;text-align:center;color:var(--fg-faint);font-size:13px}
+  .legal-text{font-size:14px;color:var(--fg-soft);line-height:1.7} .legal-text p{margin-bottom:12px} .legal-text b{color:var(--fg)}
   [dir="rtl"] .tnum,[dir="rtl"] .price,[dir="rtl"] .dprice,[dir="rtl"] .rprice,[dir="rtl"] .hp,[dir="rtl"] #q,[dir="rtl"] input[type="email"]{direction:ltr}
   [dir="rtl"] .hero-sub,[dir="rtl"] .sec-head p,[dir="rtl"] h1{text-align:right}
 
@@ -634,6 +651,9 @@
         <button class="icon-btn2" id="langBtn" aria-label="Langue / اللغة"><i class="ti ti-language"></i><span class="lbl" id="langLbl">ع</span></button>
         <button class="icon-btn2" id="themeBtn" aria-label="Basculer le thème clair/sombre"><i class="ti ti-moon"></i><span class="lbl">Thème</span></button>
         <button class="icon-btn2" id="favHdr" aria-label="Favoris"><i class="ti ti-heart"></i><span class="cnt" id="favCnt">0</span><span class="lbl">Favoris</span></button>
+        <div class="notif-wrap" style="position:relative">
+          <button class="icon-btn2" id="notifBtn" aria-label="Notifications"><i class="ti ti-bell"></i><span class="cnt" id="notifCnt">0</span><span class="lbl">Notifs</span></button>
+        </div>
         <button class="icon-btn2" id="msgBtn" aria-label="Messages"><i class="ti ti-message-circle"></i><span class="cnt" id="msgCnt">0</span><span class="lbl">Messages</span></button>
         <div class="acc-wrap" style="position:relative">
           <button class="icon-btn2" id="accBtn" aria-label="Compte"><i class="ti ti-user-circle"></i><span class="lbl" id="accLbl">Compte</span></button>
@@ -896,6 +916,7 @@
       <div class="foot-col"><h5>Explorer</h5><a href="#">Immobilier</a><a href="#">Auto &amp; Moto</a><a href="#">Emploi</a><a href="#">Multimédia</a><a href="#">Mode</a></div>
       <div class="foot-col"><h5>Vendre</h5><a href="#">Déposer une annonce</a><a href="#">Vendre avec l'IA</a><a href="#">Espace pro</a><a href="#">Tarifs boost</a></div>
       <div class="foot-col"><h5>Aide</h5><a href="#">Sécurité &amp; confiance</a><a href="#">Paiement protégé</a><a href="#">Nous contacter</a><a href="#">Signaler une annonce</a></div>
+      <div class="foot-col"><h5>Légal</h5><a style="cursor:pointer" onclick="openLegal('mentions')">Mentions légales</a><a style="cursor:pointer" onclick="openLegal('cgu')">Conditions d'utilisation</a><a style="cursor:pointer" onclick="openLegal('confidentialite')">Confidentialité</a></div>
     </div>
     <div class="foot-bot"><span>© 2026 Zilo — Maquette de démonstration.</span><span>Style : Liquid Glass · Premium gold · Playfair Display + Inter.</span></div>
   </div>
@@ -935,6 +956,24 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Vitrine du vendeur">
     <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
     <div id="storeBody"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal" id="profile" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Mon profil">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="profileBody"></div>
+  </div>
+</div>
+
+<!-- LEGAL MODAL -->
+<div class="modal" id="legal" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Informations légales">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="legalBody"></div>
   </div>
 </div>
 
@@ -1595,6 +1634,74 @@
     $('#reelsScroll').querySelectorAll('.reel').forEach(r=>reelsIO.observe(r));
   }
   function toggleReelMute(btn){ if(window.event)window.event.stopPropagation(); reelsMuted=!reelsMuted; $('#reelsScroll').querySelectorAll('video').forEach(v=>v.muted=reelsMuted); btn.querySelector('i').className='ti '+(reelsMuted?'ti-volume-off':'ti-volume'); }
+
+  // ---- Mon profil ----
+  function openProfile(){
+    if(!me){openAuth('login');return;}
+    $('#profileBody').innerHTML=`<h2 class="serif">Mon profil</h2><p class="sub">${escapeHtml(me.email)}</p>
+      <div class="seg" id="prType"><button class="${me.type!=='pro'?'on':''}" data-type="part"><i class="ti ti-user"></i> Particulier</button><button class="${me.type==='pro'?'on':''}" data-type="pro"><i class="ti ti-building-store"></i> Professionnel</button></div>
+      <div class="field2"><label>Nom complet / Raison sociale</label><input id="prName" value="${escapeHtml(me.name)}"></div>
+      <div class="field2"><label>Nouveau mot de passe (optionnel)</label><input id="prPass" type="password" placeholder="laisse vide pour ne rien changer"></div>
+      <button class="btn-primary" id="prSave" style="width:100%;justify-content:center"><i class="ti ti-check"></i> Enregistrer</button>
+      <p class="alt" style="margin-top:22px"><a id="prDel" style="color:var(--danger);cursor:pointer"><i class="ti ti-trash"></i> Supprimer mon compte définitivement</a></p>`;
+    $('#prType').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#prType').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+    $('#prSave').onclick=saveProfile; $('#prDel').onclick=deleteAccount;
+    openModal('profile');
+  }
+  async function saveProfile(){
+    const name=$('#prName').value.trim(), type=$('#prType .on').dataset.type, pass=$('#prPass').value;
+    if(!name){toast('Le nom est obligatoire','ti-alert-triangle');return;}
+    if(pass && pass.length<6){toast('Mot de passe : 6 caractères minimum','ti-alert-triangle');return;}
+    const btn=$('#prSave'); btn.disabled=true; const o=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2"></i> Enregistrement…';
+    try{ await sb.from('profiles').update({name,type}).eq('id',me.id); }catch(e){}
+    if(pass){ try{ await sb.auth.updateUser({password:pass}); }catch(e){} }
+    await refreshMe(); closeModal(); toast('Profil mis à jour ✓','ti-check');
+  }
+  async function deleteAccount(){
+    if(!confirm('Supprimer ton compte et toutes tes annonces ? Cette action est définitive.')) return;
+    if(!confirm('Es-tu vraiment sûr ? Tout sera effacé sans retour possible.')) return;
+    try{ await sb.rpc('delete_me'); }catch(e){}
+    try{ await sb.auth.signOut(); }catch(e){}
+    toast('Compte supprimé','ti-trash'); setTimeout(()=>location.reload(),900);
+  }
+
+  // ---- Légal ----
+  const LEGAL={
+    mentions:{t:'Mentions légales',h:'<p><b>Éditeur :</b> Zilo (version de démonstration).</p><p><b>Hébergement :</b> GitHub Pages.</p><p><b>Contact :</b> via la messagerie de l\'application.</p><p>Zilo est une plateforme de petites annonces entre particuliers et professionnels au Maroc. Chaque annonce est publiée sous la responsabilité de son auteur.</p>'},
+    cgu:{t:'Conditions d\'utilisation',h:'<p>En utilisant Zilo, tu acceptes de publier des annonces licites, exactes et non trompeuses.</p><p>Sont interdits : les contenus illégaux, contrefaits, dangereux ou portant atteinte aux droits d\'autrui.</p><p>Zilo peut retirer toute annonce signalée ou non conforme. La responsabilité des transactions incombe aux utilisateurs.</p><p>Le paiement protégé, lorsqu\'il sera disponible, sécurisera les échanges selon des conditions précisées au moment de l\'achat.</p>'},
+    confidentialite:{t:'Confidentialité',h:'<p>Nous collectons les informations nécessaires au service : compte (nom, e-mail), annonces, messages et favoris.</p><p>Tes données ne sont pas vendues ; elles servent uniquement au fonctionnement de l\'application (connexion, mise en relation).</p><p>Tu peux modifier ou <b>supprimer ton compte</b> à tout moment depuis « Mon profil », ce qui efface tes données associées.</p><p>Authentification et stockage assurés par Supabase.</p>'}
+  };
+  function openLegal(k){ const L=LEGAL[k]||LEGAL.mentions; $('#legalBody').innerHTML=`<h2 class="serif">${L.t}</h2><div class="legal-text">${L.h}</div>`; openModal('legal'); }
+
+  // ---- Notifications (cloche) ----
+  let notifs=[], notifUnread=0, notifCh=null;
+  function updateNotifBadge(){ const b=$('#notifCnt'); if(!b)return; b.textContent=notifUnread; b.classList.toggle('show',notifUnread>0); }
+  async function loadNotifs(){
+    if(!me){ notifs=[]; notifUnread=0; updateNotifBadge(); return; }
+    try{ const {data}=await sb.from('notifications').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(30); notifs=data||[]; notifUnread=notifs.filter(n=>!n.read).length; }catch(e){ notifs=[]; notifUnread=0; }
+    updateNotifBadge();
+  }
+  function subscribeNotifs(){
+    if(notifCh) sb.removeChannel(notifCh);
+    if(!me) return;
+    notifCh=sb.channel('rt-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+me.id},(p)=>{ notifs.unshift(p.new); notifUnread++; updateNotifBadge(); toast(p.new.text||'Nouvelle notification','ti-bell'); }).subscribe();
+  }
+  function toggleNotifMenu(){
+    let m=document.querySelector('.notif-menu'); if(m){m.remove();return;}
+    m=document.createElement('div'); m.className='notif-menu';
+    const ic=t=>t==='message'?'ti-message-circle':t==='follow'?'ti-user-plus':t==='review'?'ti-star':'ti-bell';
+    m.innerHTML=`<div class="nm-head"><b>Notifications</b>${notifs.some(n=>!n.read)?'<a id="nmRead">Tout marquer lu</a>':''}</div>`+
+      (notifs.length?notifs.slice(0,20).map(n=>`<div class="nm-item ${n.read?'':'unread'}"><i class="ti ${ic(n.type)}"></i><div><p>${escapeHtml(n.text||'')}</p><small>${timeAgo(n.created_at)}</small></div></div>`).join(''):'<div class="nm-empty">Aucune notification.</div>');
+    document.querySelector('.notif-wrap').appendChild(m);
+    const rd=m.querySelector('#nmRead'); if(rd) rd.onclick=markAllNotifs;
+  }
+  async function markAllNotifs(){
+    try{ await sb.from('notifications').update({read:true}).eq('user_id',me.id).eq('read',false); }catch(e){}
+    notifs.forEach(n=>n.read=true); notifUnread=0; updateNotifBadge();
+    const m=document.querySelector('.notif-menu'); if(m) m.remove(); toast('Notifications lues','ti-check');
+  }
+  { const nb=$('#notifBtn'); if(nb) nb.addEventListener('click',e=>{ e.stopPropagation(); if(!me){openAuth('login');return;} toggleNotifMenu(); }); }
+  document.addEventListener('click',e=>{ const m=document.querySelector('.notif-menu'); if(m && !m.contains(e.target) && !$('#notifBtn').contains(e.target)) m.remove(); });
   function openEdit(i){ const l=listings[i]; if(!me||!l._uid||l._uid!==me.id){toast('Action non autorisée','ti-lock');return;} renderPost(l); openModal('post'); }
   async function deleteListing(i){
     const l=listings[i]; if(!me||l._uid!==me.id)return;
@@ -1689,6 +1796,7 @@
     m=document.createElement('div'); m.className='acc-menu';
     m.innerHTML=`<div class="who"><b>${u.name}</b><span>${u.type==='pro'?'Compte professionnel':'Particulier'}${u.vrf?' · vérifié ✓':''}</span></div>
       <a id="amPost"><i class="ti ti-plus"></i> Déposer une annonce</a>
+      <a id="amProfile"><i class="ti ti-user-edit"></i> Mon profil</a>
       <a id="amMine"><i class="ti ti-list-details"></i> Mes annonces</a>
       <a id="amDash"><i class="ti ti-chart-bar"></i> Tableau de bord</a>
       <a id="amAlerts"><i class="ti ti-bell"></i> Mes alertes</a>
@@ -1696,6 +1804,7 @@
     document.querySelector('.acc-wrap').appendChild(m);
     m.querySelector('#amPost').onclick=()=>{m.remove();openPost();};
     m.querySelector('#amMine').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid===me.id);render();const n=filtered().length;toast(n+' annonce'+(n>1?'s':'')+' à toi','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
+    m.querySelector('#amProfile').onclick=()=>{m.remove();openProfile();};
     m.querySelector('#amDash').onclick=()=>{m.remove();openDashboard();};
     m.querySelector('#amAlerts').onclick=()=>{m.remove();openAlerts();};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
@@ -1816,8 +1925,8 @@
   function updateMsgBadge(){ const b=$('#msgCnt'); if(!b)return; b.textContent=unread; b.classList.toggle('show',unread>0); }
   function afterAuth(){
     loadFavs();
-    if(me){ loadConvs(); refreshUnread(); subscribeChat(); loadSocial(); loadListings(); }
-    else { convs=[]; unread=0; updateMsgBadge(); following.clear(); blocked.clear(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} render(); }
+    if(me){ loadConvs(); refreshUnread(); subscribeChat(); loadSocial(); loadNotifs(); subscribeNotifs(); loadListings(); }
+    else { convs=[]; unread=0; updateMsgBadge(); following.clear(); blocked.clear(); notifs=[]; notifUnread=0; updateNotifBadge(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} if(notifCh){sb.removeChannel(notifCh);notifCh=null;} render(); }
   }
   async function refreshUnread(){
     if(!me){unread=0;updateMsgBadge();return;}
