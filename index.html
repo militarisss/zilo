@@ -494,6 +494,15 @@
   .reel-actions button i{font-size:30px}
   .reels-empty{height:100%;display:grid;place-items:center;color:#fff;text-align:center;padding:30px}
   .reels-empty p{margin-top:10px;font-size:15px;line-height:1.6}
+  .bubble.offer{background:var(--accent-tint)!important;border:1px solid var(--accent);min-width:150px}
+  .bubble.offer.mine{background:var(--accent)!important;color:#fff!important;border:none}
+  .of-h{font-size:11px;font-weight:600;opacity:.85;display:flex;align-items:center;gap:4px}
+  .of-a{font-size:19px;font-weight:700;margin:3px 0}
+  .of-btns{display:flex;gap:6px;margin-top:6px}
+  .of-btns button{flex:1;font-size:11px;font-weight:600;padding:7px;border-radius:8px;background:#fff;color:#15803D;border:1px solid var(--border)}
+  .of-btns button.no{color:#DC2626}
+  .bubble.sys{align-self:center;background:var(--muted)!important;color:var(--fg-soft)!important;font-size:12px;border-radius:99px;padding:6px 14px;display:flex;align-items:center;gap:6px;max-width:none}
+  .bubble.sys.ok{color:var(--green)!important} .bubble.sys.no{color:var(--danger)!important}
 
   .notif-menu{position:absolute;top:100%;right:0;margin-top:8px;width:min(320px,calc(100vw - 28px));background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:95;max-height:60vh;overflow-y:auto}
   .nm-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
@@ -810,6 +819,7 @@
       <div class="lcontrols">
         <button class="vidbtn" onclick="openReels()"><i class="ti ti-player-play"></i> Vidéos</button>
         <button class="vt geo-near" id="geoNear"><i class="ti ti-current-location"></i> Autour de moi</button>
+        <button class="vt" onclick="openFilters()"><i class="ti ti-adjustments-horizontal"></i> Filtres</button>
         <select id="sortBy" class="sortsel">
           <option value="relevance">Pertinence</option>
           <option value="price-asc">Prix croissant</option>
@@ -959,6 +969,15 @@
   </div>
 </div>
 
+<!-- FILTRES AVANCÉS MODAL -->
+<div class="modal" id="filters" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Filtres avancés">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="filtersBody"></div>
+  </div>
+</div>
+
 <!-- PROFILE MODAL -->
 <div class="modal" id="profile" aria-hidden="true">
   <div class="scrim" data-close></div>
@@ -1078,7 +1097,7 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null;
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null, adv=null;
   let LANG=(function(){ try{return localStorage.getItem('zilo_lang')||'fr';}catch(e){return 'fr';} })();
   const AR={
     "Immobilier":"عقارات","Véhicules":"سيارات","Multimédia":"وسائط متعددة","Maison & Déco":"منزل وديكور","Emploi":"وظائف","Vendre avec l'IA":"البيع بالذكاء الاصطناعي",
@@ -1120,7 +1139,8 @@
     const ll=document.getElementById('langLbl'); if(ll) ll.textContent=(l==='ar'?'FR':'ع');
     if(l==='ar') applyAr(document.body); else location.reload();
   }
-  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)));
+  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)) && (!adv || matchAdv(l)));
+  function matchAdv(l){ if(!adv) return true; const p=+String(l._price!=null?l._price:l.p).replace(/[^\d]/g,'')||0; if(adv.min&&p<adv.min)return false; if(adv.max&&p>adv.max)return false; if(adv.cat&&!(l.cat||'').toLowerCase().startsWith(adv.cat.toLowerCase()))return false; if(adv.cond&&l.cond!==adv.cond)return false; return true; }
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
   function cardHTML(l,i,delay){
@@ -1303,14 +1323,14 @@
       <h2>${l.t}</h2>
       <div class="dloc"><i class="ti ti-map-pin"></i> ${l.loc}</div>
       ${l.online?`<div class="dlive"><span class="dot"></span> En ligne · vu par ${l.views} personnes aujourd'hui</div>`:`<div class="dloc" style="margin-bottom:18px"><i class="ti ti-eye"></i> Vu par ${l.views} personnes</div>`}
-      <div class="dseller" onclick="${l.pro?`openStore(${i})`:`toast('Profil vendeur (démo)','ti-user')`}">
+      <div class="dseller" onclick="${l._uid?`openStore(${i})`:`toast('Profil de démonstration','ti-user')`}">
         ${sellerAv}
         <div class="info"><div class="nm">${l.sn} ${l.vrf?'<i class="ti ti-rosette-discount-check vchip"></i>':''} ${l.pro?'<span class="protag">Pro</span>':''}</div>
         <div class="sub">★ ${l.rt} · ${l.reviews} avis · répond en < 1h</div></div>
-        ${l.pro?'<i class="ti ti-chevron-right go-i"></i>':''}
+        ${l._uid?'<i class="ti ti-chevron-right go-i"></i>':''}
       </div>
       <div class="dactions">
-        <button class="btn-primary" onclick="toast('Offre envoyée (démo)','ti-send')"><i class="ti ti-message-2"></i> Faire une offre</button>
+        <button class="btn-primary" onclick="makeOffer(${i})"><i class="ti ti-message-2"></i> Faire une offre</button>
         <button class="btn-ghost" onclick="toast('Paiement protégé (démo)','ti-shield-check')"><i class="ti ti-shopping-bag"></i> Acheter</button>
       </div>
       <button class="btn-ghost dmsg" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Contacter le vendeur</button>
@@ -1326,14 +1346,22 @@
   $('#gprev').onclick=()=>setG(gIdx-1); $('#gnext').onclick=()=>setG(gIdx+1);
 
   // ===== STOREFRONT =====
-  function openStore(i){
-    const s=listings[i]; const items=listings.map((l,k)=>({l,k})).filter(({l})=>l.sn===s.sn);
+  async function openStore(i){
+    const s=listings[i];
+    const items = s._uid ? listings.map((l,k)=>({l,k})).filter(({l})=>l._uid===s._uid) : listings.map((l,k)=>({l,k})).filter(({l})=>l.sn===s.sn);
+    let avg=0,nrev=0;
+    if(s._uid){ try{ const rv=await sb.from('reviews').select('rating').eq('target_user_id',s._uid); const li=rv.data||[]; nrev=li.length; avg=li.length?(li.reduce((a,r)=>a+r.rating,0)/li.length):0; }catch(e){} }
+    const isFollowing=s._uid&&following.has(s._uid), canFollow=me&&s._uid&&s._uid!==me.id;
     $('#storeBody').innerHTML=`
       <div class="store-head">
-        <div class="logo-sq"><i class="ti ${s.proIcon||'ti-building-store'}"></i></div>
-        <div><h2>${s.sn} <i class="ti ti-rosette-discount-check vchip"></i></h2>
-        <div class="sub">${s.proIcon==='ti-building-skyscraper'?'Agence immobilière':'Concessionnaire automobile'} · Casablanca</div>
-        <div class="store-stats"><div><b class="tnum">${s.rt}★</b><span>note</span></div><div><b class="tnum">${s.reviews}</b><span>avis</span></div><div><b class="tnum">${items.length}</b><span>annonces</span></div></div>
+        <div class="logo-sq" ${s.pro?'':'style="font-size:22px"'}>${s.pro?`<i class="ti ${s.proIcon||'ti-building-store'}"></i>`:ini(s.sn)}</div>
+        <div><h2>${escapeHtml(s.sn)} ${s.vrf?'<i class="ti ti-rosette-discount-check vchip"></i>':''}</h2>
+        <div class="sub">${s.pro?(s.proIcon==='ti-building-skyscraper'?'Agence immobilière':'Professionnel'):'Particulier'} · ${escapeHtml(s.city||'Casablanca')}</div>
+        <div class="store-stats"><div><b class="tnum">${avg?avg.toFixed(1):'—'}★</b><span>note</span></div><div><b class="tnum">${nrev}</b><span>avis</span></div><div><b class="tnum">${items.length}</b><span>annonces</span></div></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          ${canFollow?`<button class="btn-ghost" onclick="toggleFollow(${i},this)"><i class="ti ${isFollowing?'ti-user-check':'ti-user-plus'}"></i> ${isFollowing?'Vendeur suivi':'Suivre'}</button>`:''}
+          ${s._uid?`<button class="btn-ghost" onclick="openReviews('${s._uid}','${escapeHtml(s.sn).replace(/'/g,'')}')"><i class="ti ti-star"></i> Avis</button>`:''}
+        </div>
         </div>
       </div>
       <div class="store-grid">${items.map(({l,k},n)=>cardHTML(l,k,n*45)).join('')}</div>`;
@@ -1584,6 +1612,22 @@
   }
   function runAlert(query){ closeModal(); q.value=decodeURIComponent(query); runSearch(); }
   async function delAlert(id){ try{ await sb.from('saved_searches').delete().eq('id',id); }catch(e){} openAlerts(); }
+  function openFilters(){
+    const cats=['','Immobilier','Auto & Moto','Multimédia','Maison & Déco','Mode','Emploi'];
+    $('#filtersBody').innerHTML=`<h2 class="serif">Filtres avancés</h2><p class="sub">Affine ta recherche.</p>
+      <div class="row2f"><div class="field2"><label>Prix min (dh)</label><input id="fMin" type="number" min="0" value="${(adv&&adv.min)||''}"></div><div class="field2"><label>Prix max (dh)</label><input id="fMax" type="number" min="0" value="${(adv&&adv.max)||''}"></div></div>
+      <div class="field2"><label>Catégorie</label><select id="fCat">${cats.map(c=>`<option value="${c}" ${adv&&adv.cat===c?'selected':''}>${c||'Toutes'}</option>`).join('')}</select></div>
+      <div class="field2"><label>État</label><select id="fCond"><option value="">Tous</option>${['Neuf','Très bon état','Bon état','Correct'].map(c=>`<option ${adv&&adv.cond===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <button class="btn-primary" style="width:100%;justify-content:center" onclick="applyFilters()"><i class="ti ti-check"></i> Appliquer</button>
+      <p class="alt" style="margin-top:14px"><a onclick="clearFilters()" style="cursor:pointer">Réinitialiser les filtres</a></p>`;
+    openModal('filters');
+  }
+  function applyFilters(){
+    const min=+$('#fMin').value||0, max=+$('#fMax').value||0, cat=$('#fCat').value, cond=$('#fCond').value;
+    adv = (min||max||cat||cond) ? {min,max,cat,cond} : null;
+    closeModal(); render(); toast(adv?(filtered().length+' annonces filtrées'):'Filtres retirés','ti-adjustments-horizontal');
+  }
+  function clearFilters(){ adv=null; closeModal(); render(); toast('Filtres réinitialisés','ti-x'); }
   async function openDashboard(){
     if(!me){openAuth('login');return;}
     let nListings=0,totalViews=0,favRecv=0,followers=0,nReviews=0,avgR=0,nConv=0,ids=[];
@@ -1799,6 +1843,7 @@
       <a id="amProfile"><i class="ti ti-user-edit"></i> Mon profil</a>
       <a id="amMine"><i class="ti ti-list-details"></i> Mes annonces</a>
       <a id="amDash"><i class="ti ti-chart-bar"></i> Tableau de bord</a>
+      <a id="amFollowed"><i class="ti ti-users"></i> Vendeurs suivis</a>
       <a id="amAlerts"><i class="ti ti-bell"></i> Mes alertes</a>
       <a id="amOut"><i class="ti ti-logout"></i> Se déconnecter</a>`;
     document.querySelector('.acc-wrap').appendChild(m);
@@ -1806,6 +1851,7 @@
     m.querySelector('#amMine').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid===me.id);render();const n=filtered().length;toast(n+' annonce'+(n>1?'s':'')+' à toi','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
     m.querySelector('#amProfile').onclick=()=>{m.remove();openProfile();};
     m.querySelector('#amDash').onclick=()=>{m.remove();openDashboard();};
+    m.querySelector('#amFollowed').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid&&following.has(l._uid));render();const n=filtered().length;toast(n?(n+' annonce'+(n>1?'s':'')+' de tes vendeurs suivis'):'Tu ne suis aucun vendeur (ou pas d\'annonce)','ti-users');$('#listings').scrollIntoView({behavior:'smooth'});};
     m.querySelector('#amAlerts').onclick=()=>{m.remove();openAlerts();};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
   }
@@ -1970,7 +2016,7 @@
       if(ins.error){toast('Erreur : '+ins.error.message,'ti-alert-triangle');return;}
       conv=ins.data;
     }
-    closeModal(); await loadConvs(); openConversation(conv.id);
+    closeModal(); await loadConvs(); await openConversation(conv.id);
   }
   async function openConversation(id){
     let c=convs.find(x=>x.id===id);
@@ -1987,16 +2033,34 @@
   }
   function backToList(){ $('#chat').classList.remove('thread-open'); openConv=null; renderConvList(); }
   const escapeHtml=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const msgHTML=m=>`<div class="bubble ${m.sender_id===me.id?'mine':'theirs'}">${escapeHtml(m.body)}</div>`;
+  const msgHTML=m=>{
+    const b=m.body||'', mine=m.sender_id===me.id;
+    if(b.startsWith('__OFFER__')){ const v=+b.slice(9)||0; return `<div class="bubble offer ${mine?'mine':'theirs'}"><div class="of-h"><i class="ti ti-tag"></i> ${mine?'Tu proposes':'Offre reçue'}</div><div class="of-a">${v.toLocaleString('fr-FR')} dh</div>${!mine?`<div class="of-btns"><button onclick="acceptOffer(${v})">Accepter</button><button class="no" onclick="declineOffer()">Refuser</button></div>`:''}</div>`; }
+    if(b.startsWith('__ACCEPT__')){ const v=+b.slice(10)||0; return `<div class="bubble sys ok"><i class="ti ti-circle-check"></i> Offre acceptée : ${v.toLocaleString('fr-FR')} dh</div>`; }
+    if(b==='__DECLINE__'){ return `<div class="bubble sys no"><i class="ti ti-circle-x"></i> Offre refusée</div>`; }
+    return `<div class="bubble ${mine?'mine':'theirs'}">${escapeHtml(b)}</div>`;
+  };
   function appendMsg(m){ const t=$('#threadMsgs'); if(t){ t.insertAdjacentHTML('beforeend',msgHTML(m)); scrollThread(); } }
   function scrollThread(){ const t=$('#threadMsgs'); if(t) t.scrollTop=t.scrollHeight; }
-  async function sendMessage(){
-    const inp=$('#msgInput'); if(!inp||!openConv) return;
-    const body=inp.value.trim(); if(!body) return; inp.value='';
+  async function sendRaw(body){
+    if(!openConv||!body) return;
     const {data,error}=await sb.from('messages').insert({conversation_id:openConv.id, sender_id:me.id, body}).select().single();
-    if(error){toast('Envoi impossible : '+error.message,'ti-alert-triangle');return;}
+    if(error){toast('Envoi impossible','ti-alert-triangle');return;}
     appendMsg(data);
-    sb.from('conversations').update({last_body:body, last_at:new Date().toISOString()}).eq('id',openConv.id).then(loadConvs);
+    const last=body.startsWith('__OFFER__')?('💰 Offre : '+(+body.slice(9)).toLocaleString('fr-FR')+' dh'):body.startsWith('__ACCEPT__')?'✅ Offre acceptée':body==='__DECLINE__'?'❌ Offre refusée':body;
+    sb.from('conversations').update({last_body:last, last_at:new Date().toISOString()}).eq('id',openConv.id).then(loadConvs);
+  }
+  async function sendMessage(){ const inp=$('#msgInput'); if(!inp) return; const body=inp.value.trim(); if(!body) return; inp.value=''; await sendRaw(body); }
+  async function acceptOffer(v){ await sendRaw('__ACCEPT__'+v); toast('Offre acceptée ✓','ti-circle-check'); }
+  async function declineOffer(){ await sendRaw('__DECLINE__'); }
+  async function makeOffer(i){
+    const l=listings[i];
+    if(!me){toast('Connecte-toi','ti-lock');openAuth('login');return;}
+    if(!l._uid){toast('Annonce de démonstration','ti-info-circle');return;}
+    if(l._uid===me.id){toast('C\'est ta propre annonce','ti-info-circle');return;}
+    const amt=prompt('Ton offre en dirhams :', String(l._price!=null?l._price:'').replace(/[^\d]/g,'')); if(amt===null)return;
+    const n=Number(String(amt).replace(/[^\d]/g,'')); if(!n){toast('Montant invalide','ti-alert-triangle');return;}
+    await openChatFor(i); await sendRaw('__OFFER__'+n);
   }
   async function markRead(convId){
     try{ await sb.from('messages').update({read_at:new Date().toISOString()}).eq('conversation_id',convId).is('read_at',null).neq('sender_id',me.id); }catch(e){}
