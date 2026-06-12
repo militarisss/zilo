@@ -1394,7 +1394,7 @@
       <h2>${l.t}</h2>
       <div class="dloc"><i class="ti ti-map-pin"></i> ${l.loc}</div>
       ${l.online?`<div class="dlive"><span class="dot"></span> En ligne · vu par ${l.views} personnes aujourd'hui</div>`:`<div class="dloc" style="margin-bottom:18px"><i class="ti ti-eye"></i> Vu par ${l.views} personnes</div>`}
-      ${critHTML(l)}
+      <p class="ddesc">${l.desc}</p>
       <div class="dseller" onclick="${l._uid?`openStore(${i})`:`toast('Profil de démonstration','ti-user')`}">
         ${sellerAv}
         <div class="info"><div class="nm">${l.sn} ${l.vrf?'<i class="ti ti-rosette-discount-check vchip"></i>':''} ${l.pro?'<span class="protag">Pro</span>':''}</div>
@@ -1410,7 +1410,7 @@
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="shareListing(${i})"><i class="ti ti-share-3"></i> Partager l'annonce</button>
       ${(l._uid&&me&&l._uid!==me.id)?`<button class="btn-ghost dmsg" style="margin-top:8px" onclick="toggleFollow(${i},this)"><i class="ti ${following.has(l._uid)?'ti-user-check':'ti-user-plus'}"></i> ${following.has(l._uid)?'Vendeur suivi':'Suivre le vendeur'}</button>`:''}
       <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
-      <p class="ddesc">${l.desc}</p>
+      ${critHTML(l)}
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
       <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>${(l._uid&&me&&l._uid!==me.id)?`<button class="dreport" style="margin-left:16px" onclick="toggleBlock(${i})"><i class="ti ti-ban"></i> Bloquer le vendeur</button>`:''}
       <div class="dbar">
