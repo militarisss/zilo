@@ -248,7 +248,7 @@
   .story .ring{width:64px;height:64px;border-radius:50%;padding:3px;display:grid;place-items:center;background:linear-gradient(135deg,var(--c1,var(--accent)),var(--c2,#D85A30));transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
   .story:hover .ring{transform:scale(1.07);box-shadow:0 8px 18px -6px var(--c1,var(--accent))}
   .story .ring i{width:100%;height:100%;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:26px;color:var(--c1,var(--accent));place-self:stretch}
-  .story.add .ring{background:var(--muted)} .story.add .ring i{color:var(--fg-soft)}
+  .story.add .ring i{font-weight:700}
 
   /* verticals */
   .verticals{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
@@ -1358,7 +1358,7 @@
     ['ti-briefcase','Emploi','#0891B2','#22D3EE'],
     ['ti-baby-carriage','Enfance','#EA580C','#FBBF24'],
   ];
-  $('#stories').innerHTML = `<button class="story add"><span class="ring"><i class="ti ti-plus"></i></span>Vendre</button>` +
+  $('#stories').innerHTML = `<button class="story add" style="--c1:#A16207;--c2:#F59E0B"><span class="ring"><i class="ti ti-plus"></i></span>Vendre</button>` +
     cats.map(c=>`<button class="story" style="--c1:${c[2]};--c2:${c[3]}"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
   document.querySelectorAll('#stories .story').forEach(s=>s.addEventListener('click',()=>toast('Catégorie : '+s.textContent.trim(),'ti-photo')));
 
