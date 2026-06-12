@@ -315,7 +315,8 @@
   .maphint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:11px;font-weight:600;background:var(--glass-strong);backdrop-filter:blur(8px);border:1px solid var(--glass-brd);padding:6px 13px;border-radius:var(--r-pill);color:var(--fg-soft);display:flex;align-items:center;gap:6px}
 
   /* real map (Leaflet) */
-  #lmap{height:440px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);z-index:0}
+  #lmap,#homemap{height:440px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);z-index:0}
+  #homemap{height:400px}
   .lpin{transform:translateY(-50%);background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:var(--r-pill);padding:5px 11px;font-size:12px;font-weight:700;color:var(--fg);white-space:nowrap;cursor:pointer;transition:.15s var(--ease)}
   .lpin:hover{border-color:var(--accent);color:var(--accent)} .lpin.pro{border-color:var(--blue);color:var(--blue)}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--fg)} .leaflet-popup-content-wrapper{border-radius:var(--r)!important}
@@ -733,6 +734,14 @@
   </div>
 </section>
 
+<!-- CARTE ACCUEIL -->
+<section id="homemap-sec" class="reveal">
+  <div class="wrap">
+    <div class="sec-head"><div><h2 class="serif">Autour de toi</h2><p>Toutes les annonces près de chez toi, sur la carte.</p></div></div>
+    <div id="homemap"></div>
+  </div>
+</section>
+
 <section id="sell" class="reveal">
   <div class="wrap">
     <div class="sell">
@@ -967,8 +976,28 @@
     });
   }
 
+  let LMAP2=null, markerLayer2=null;
+  function updateHomeMap(){
+    if(typeof L==='undefined' || !$('#homemap')) return;
+    if(!LMAP2){
+      LMAP2=L.map('homemap',{scrollWheelZoom:false}).setView([33.5731,-7.5898],12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(LMAP2);
+      markerLayer2=L.layerGroup().addTo(LMAP2);
+    }
+    setTimeout(()=>LMAP2.invalidateSize(),60);
+    markerLayer2.clearLayers();
+    const pts=[];
+    filtered().forEach(({l,i})=>{
+      const icon=L.divIcon({className:'lpin-wrap',html:`<div class="lpin ${l.pro?'pro':''}">${l.p} ${l.u.replace('/mois','')}</div>`,iconSize:[0,0]});
+      const m=L.marker([l.lat,l.lng],{icon}).addTo(markerLayer2);
+      m.on('click',()=>openDetail(i));
+      pts.push([l.lat,l.lng]);
+    });
+    if(pts.length) LMAP2.fitBounds(pts,{padding:[40,40],maxZoom:14});
+  }
   function render(){
     const items = filtered();
+    updateHomeMap();
     $('#listingsSub').textContent = `${items.length} annonce${items.length>1?'s':''} · trié par l'IA selon ta zone`;
     if(view==='map'){ renderMap(items); return; }
     if(!items.length){ grid.innerHTML = `<div class="empty"><i class="ti ti-mood-empty"></i><b>Aucune annonce avec ces filtres</b>Essaie d'en désactiver un.</div>`; return; }
