@@ -231,6 +231,14 @@
   .stats{display:flex;gap:38px;margin-top:40px;flex-wrap:wrap}
   .stat b{font-size:28px;font-weight:700;letter-spacing:-.5px;display:block}
   .stat span{font-size:13px;color:var(--fg-faint)}
+  @media(max-width:680px){
+    .hero{padding:20px 0 26px}
+    .eyebrow{margin-bottom:14px}
+    .stats{gap:8px;margin-top:22px;flex-wrap:nowrap;width:100%}
+    .stat{flex:1;min-width:0}
+    .stat b{font-size:19px}
+    .stat span{font-size:10.5px;line-height:1.25}
+  }
 
   /* SECTIONS */
   section{padding:34px 0}
@@ -799,6 +807,11 @@
       <p id="aiText">J'ai trouvé <b>7 annonces</b> qui correspondent. J'ai écarté 3 vendeurs mal notés et trié par proximité.</p>
       <div class="filters" id="aiFilters"></div>
     </div>
+    <div class="stats" id="stats">
+      <div class="stat"><b class="tnum" data-target="2.4" data-dec="1" data-suf=" M">2,4 M</b><span>annonces actives</span></div>
+      <div class="stat"><b class="tnum" data-target="98" data-suf="%">98%</b><span>vendeurs vérifiés</span></div>
+      <div class="stat"><b class="tnum" data-pre="&lt; " data-target="10" data-suf=" min">&lt; 10 min</b><span>pour publier avec l'IA</span></div>
+    </div>
     </div>
 
     <aside class="hero-bento" aria-hidden="true">
@@ -960,11 +973,6 @@
         <span style="background:#A16207">YB</span><span style="background:#1D4ED8">SF</span><span style="background:#15803D">KM</span><span style="background:#9333EA">NL</span>
       </div>
       <div class="txt"><span class="stars">★★★★★</span> <b>4,9/5</b> · plus de <b class="tnum">12 400</b> avis ce mois-ci</div>
-    </div>
-    <div class="stats" id="stats">
-      <div class="stat"><b class="tnum" data-target="2.4" data-dec="1" data-suf=" M">2,4 M</b><span>annonces actives</span></div>
-      <div class="stat"><b class="tnum" data-target="98" data-suf="%">98%</b><span>vendeurs vérifiés</span></div>
-      <div class="stat"><b class="tnum" data-pre="&lt; " data-target="10" data-suf=" min">&lt; 10 min</b><span>pour publier avec l'IA</span></div>
     </div>
   </div>
 </section>
