@@ -486,6 +486,9 @@
   .reels-empty{height:100%;display:grid;place-items:center;color:#fff;text-align:center;padding:30px}
   .reels-empty p{margin-top:10px;font-size:15px;line-height:1.6}
 
+  [dir="rtl"] .tnum,[dir="rtl"] .price,[dir="rtl"] .dprice,[dir="rtl"] .rprice,[dir="rtl"] .hp,[dir="rtl"] #q,[dir="rtl"] input[type="email"]{direction:ltr}
+  [dir="rtl"] .hero-sub,[dir="rtl"] .sec-head p,[dir="rtl"] h1{text-align:right}
+
   /* TOAST */
   .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(24px);background:var(--primary);color:var(--on-primary);padding:14px 22px;border-radius:var(--r-pill);font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:.35s var(--ease);z-index:200;display:flex;align-items:center;gap:9px}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)} .toast i{color:var(--accent-2);font-size:18px}
@@ -627,6 +630,7 @@
         <button class="hdr-go" id="hgo" aria-label="Rechercher"><i class="ti ti-search"></i></button>
       </div>
       <div class="hdr-acc">
+        <button class="icon-btn2" id="langBtn" aria-label="Langue / اللغة"><i class="ti ti-language"></i><span class="lbl" id="langLbl">ع</span></button>
         <button class="icon-btn2" id="themeBtn" aria-label="Basculer le thème clair/sombre"><i class="ti ti-moon"></i><span class="lbl">Thème</span></button>
         <button class="icon-btn2" id="favHdr" aria-label="Favoris"><i class="ti ti-heart"></i><span class="cnt" id="favCnt">0</span><span class="lbl">Favoris</span></button>
         <button class="icon-btn2" id="msgBtn" aria-label="Messages"><i class="ti ti-message-circle"></i><span class="cnt" id="msgCnt">0</span><span class="lbl">Messages</span></button>
@@ -1035,6 +1039,47 @@
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
   let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null;
+  let LANG=(function(){ try{return localStorage.getItem('zilo_lang')||'fr';}catch(e){return 'fr';} })();
+  const AR={
+    "Immobilier":"عقارات","Véhicules":"سيارات","Multimédia":"وسائط متعددة","Maison & Déco":"منزل وديكور","Emploi":"وظائف","Vendre avec l'IA":"البيع بالذكاء الاصطناعي",
+    "Vente":"للبيع","Location":"للكراء","Bureaux & commerces":"مكاتب ومحلات","Colocation":"سكن مشترك","Terrains":"أراضي",
+    "Voitures":"سيارات","Motos":"دراجات نارية","Utilitaires":"عربات نفعية","Caravaning":"كرفان","Pièces & accessoires":"قطع وملحقات",
+    "Téléphones":"هواتف","Ordinateurs":"حواسيب","Consoles & jeux":"أجهزة وألعاب","TV & Son":"تلفاز وصوت","Photo":"تصوير",
+    "Ameublement":"أثاث","Électroménager":"أجهزة منزلية","Décoration":"ديكور","Bricolage":"أدوات","Jardin":"حديقة",
+    "Offres d'emploi":"عروض عمل","Cours particuliers":"دروس خصوصية","Services":"خدمات","Événements":"فعاليات","Animaux":"حيوانات",
+    "Thème":"المظهر","Favoris":"المفضلة","Messages":"الرسائل","Compte":"الحساب","Se connecter":"تسجيل الدخول","Déposer une annonce":"نشر إعلان",
+    "Nouveau · Recherche par IA":"جديد · بحث بالذكاء الاصطناعي","Décris ce que tu cherches.":"صِف ما تبحث عنه.","On trouve le":"ونحن نجد","reste":"الباقي",
+    "2,4 millions d'annonces vérifiées près de chez toi. Dis simplement ce que tu veux — l'IA s'occupe des filtres, du prix juste et des bons vendeurs.":"2.4 مليون إعلان موثّق بالقرب منك. قل ما تريد فقط — الذكاء الاصطناعي يتكفّل بالفلاتر والثمن المناسب والبائعين الجيّدين.",
+    "Recherche IA":"بحث بالذكاء","Classique":"عادي","Autour de moi":"بالقرب مني","Trouver":"بحث",
+    "Studio proche tramway":"استوديو قرب الطرامواي","iPhone vérifié":"آيفون موثّق","Citadine auto":"سيارة أوتوماتيك","Canapé d'angle":"أريكة زاوية",
+    "annonces actives":"إعلانات نشطة","vendeurs vérifiés":"بائعون موثّقون","pour publier avec l'IA":"للنشر بالذكاء",
+    "Sélectionné pour toi":"مختار لك","Vu récemment":"شوهد مؤخراً","L'immobilier autour de toi":"العقارات بالقرب منك","Les biens immobiliers près de chez toi, sur la carte.":"العقارات بالقرب منك، على الخريطة.","Tout voir":"عرض الكل",
+    "Près de moi":"بالقرب مني","Livraison":"توصيل","Vérifiés":"موثّقون","Pros":"محترفون","Particuliers":"أفراد","Bon prix":"ثمن مناسب",
+    "Vidéos":"فيديوهات","Liste":"قائمة","Carte":"خريطة",
+    "Pertinence":"الأنسب","Prix croissant":"الثمن تصاعدياً","Prix décroissant":"الثمن تنازلياً","Plus récent":"الأحدث","Plus proche":"الأقرب",
+    "Une photo suffit.":"صورة واحدة تكفي.","L'IA fait le reste.":"الذكاء الاصطناعي يقوم بالباقي.","Voir comment ça marche":"شاهد كيف يعمل",
+    "Particulier vérifié":"فرد موثّق","Compte professionnel":"حساب احترافي","Vérifier mon identité":"تأكيد هويتي","Créer un compte Pro":"إنشاء حساب احترافي",
+    "sûr et simple":"آمناً وبسيطاً","Publie en 30 secondes":"انشر في 30 ثانية","Paiement protégé":"دفع آمن","Remise en main propre":"تسليم مباشر",
+    "Explorer":"استكشف","Vendre":"بيع","Aide":"مساعدة","Accueil":"الرئيسية",
+    "Contacter le vendeur":"تواصل مع البائع","Avis sur le vendeur":"تقييمات البائع","Partager l'annonce":"مشاركة الإعلان","Faire une offre":"قدّم عرضاً","Acheter":"شراء","Précédent":"السابق","Suivant":"التالي","Suivre le vendeur":"متابعة البائع","Vendeur suivi":"تتم المتابعة","Signaler cette annonce":"الإبلاغ عن الإعلان","Bloquer le vendeur":"حظر البائع",
+    "Mes annonces":"إعلاناتي","Tableau de bord":"لوحة التحكم","Mes alertes":"تنبيهاتي","Se déconnecter":"تسجيل الخروج",
+    "Titre *":"العنوان *","Catégorie":"الفئة","Ville":"المدينة","Quartier":"الحي","Prix *":"الثمن *","Unité":"الوحدة","État":"الحالة","Description":"الوصف","Publier mon annonce":"نشر إعلاني","Remplir avec l'IA depuis la photo":"الملء بالذكاء من الصورة",
+    "Créer un compte":"إنشاء حساب","Email":"البريد الإلكتروني","Mot de passe":"كلمة المرور","Créer mon compte":"إنشاء حسابي","Nom complet / Raison sociale":"الاسم الكامل","ou par email":"أو بالبريد","Professionnel":"محترف",
+    "Vérifié":"موثّق","Pro":"محترف","Nouveau":"جديد","Top choix IA":"اختيار الذكاء","Coup de cœur":"المفضّلة","Agence":"وكالة","Bonnes affaires":"صفقات جيدة","Rechercher sur zilo":"بحث في زيلو","Décris ce que tu cherches…":"صِف ما تبحث عنه…"
+  };
+  function applyAr(root){
+    if(LANG!=='ar'||!root||!root.querySelectorAll) return;
+    const w=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), ns=[];
+    while(w.nextNode()) ns.push(w.currentNode);
+    ns.forEach(n=>{ const t=n.nodeValue.trim(); if(t && AR[t]) n.nodeValue=n.nodeValue.replace(t,AR[t]); });
+    root.querySelectorAll('[placeholder]').forEach(el=>{ const p=el.getAttribute('placeholder'); if(p && AR[p]) el.setAttribute('placeholder',AR[p]); });
+  }
+  function setLang(l){
+    LANG=l; try{localStorage.setItem('zilo_lang',l);}catch(e){}
+    document.documentElement.lang=l; document.documentElement.dir=(l==='ar')?'rtl':'ltr';
+    const ll=document.getElementById('langLbl'); if(ll) ll.textContent=(l==='ar'?'FR':'ع');
+    if(l==='ar') applyAr(document.body); else location.reload();
+  }
   const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)));
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
@@ -1068,6 +1113,7 @@
 
   function markLoaded(scope){
     scope.querySelectorAll('.ph img').forEach(im=>{ if(im.complete){im.classList.add('ld');im.parentElement.classList.remove('loading');} });
+    if(LANG==='ar') applyAr(scope);
     if(reduceMotion) return;
     scope.querySelectorAll('.card').forEach(card=>{
       card.addEventListener('pointermove',e=>{
@@ -1257,7 +1303,7 @@
 
   // modal helpers
   let openId=null;
-  function openModal(id){ closeModal(); openId=id; const m=document.getElementById(id); m.classList.add('open'); m.setAttribute('aria-hidden','false'); document.body.classList.add('lock'); }
+  function openModal(id){ closeModal(); openId=id; const m=document.getElementById(id); m.classList.add('open'); m.setAttribute('aria-hidden','false'); document.body.classList.add('lock'); if(LANG==='ar') applyAr(m); }
   function closeModal(){ if(!openId)return; const m=document.getElementById(openId); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); document.body.classList.remove('lock'); openId=null; }
   document.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',closeModal));
   addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
@@ -1341,7 +1387,7 @@
   // typed placeholder
   const q=$('#q');
   const examples=["un vélo de ville fiable, moins de 2000 dh, à pied…","un studio meublé proche du tramway…","une PS5 avec deux manettes, livrée…","un canapé d'angle en bon état ce week-end…","une citadine automatique, faible kilométrage…"];
-  if(!reduceMotion){
+  if(!reduceMotion && LANG!=='ar'){
     let ei=0,k=0,del=false;
     (function type(){
       if(document.activeElement===q || q.value){return setTimeout(type,1200);}
@@ -1854,6 +1900,8 @@
   sb.auth.onAuthStateChange(()=>refreshMe());
   loadListings();
   renderHistory();
+  if(LANG==='ar'){ document.documentElement.dir='rtl'; document.documentElement.lang='ar'; const _ll=document.getElementById('langLbl'); if(_ll)_ll.textContent='FR'; setTimeout(()=>applyAr(document.body),40); }
+  { const _lb=document.getElementById('langBtn'); if(_lb) _lb.addEventListener('click',()=>setLang(LANG==='ar'?'fr':'ar')); }
   if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
 </body>
