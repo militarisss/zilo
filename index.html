@@ -814,6 +814,11 @@
 
     <div class="stories scrollx" id="stories"></div>
 
+    <div id="reco-sec" hidden>
+      <h2 class="serif" style="font-size:20px;margin:6px 0 12px"><i class="ti ti-sparkles" style="color:var(--accent);font-size:18px;vertical-align:-2px"></i> Pour toi</h2>
+      <div class="histrail scrollx" id="recoRail"></div>
+    </div>
+
     <div id="hist-sec" hidden>
       <h2 class="serif" style="font-size:20px;margin:6px 0 12px">Vu récemment</h2>
       <div class="histrail scrollx" id="histRail"></div>
@@ -1275,6 +1280,7 @@
     const items = sortItems(filtered());
     lastItems = items;
     updateHomeMap();
+    renderReco();
     $('#listingsSub').textContent = `${items.length} annonce${items.length>1?'s':''} · trié par l'IA selon ta zone`;
     if(view==='map'){ renderMap(items); return; }
     if(!items.length){ grid.innerHTML = `<div class="empty"><i class="ti ti-mood-empty"></i><b>Aucune annonce avec ces filtres</b>Essaie d'en désactiver un.</div>`; return; }
@@ -1611,7 +1617,7 @@
   function pushHistory(l){
     const key=l._id||('demo:'+l.t);
     try{ let h=JSON.parse(localStorage.getItem('zilo_hist')||'[]'); h=h.filter(x=>x.k!==key); h.unshift({k:key,t:l.t,p:l.p,u:l.u,img:l.imgs[0]}); localStorage.setItem('zilo_hist',JSON.stringify(h.slice(0,12))); }catch(e){}
-    renderHistory();
+    renderHistory(); renderReco();
   }
   function renderHistory(){
     const el=$('#histRail'), sec=$('#hist-sec'); if(!el||!sec) return;
@@ -1621,6 +1627,23 @@
     el.innerHTML=h.map(x=>`<button class="histcard" onclick="openByKey('${encodeURIComponent(x.k)}')"><img src="${IMG(x.img,200)}" alt="" loading="lazy"><span class="hp tnum">${x.p} <small>${x.u}</small></span><span class="ht">${escapeHtml(x.t)}</span></button>`).join('');
   }
   function openByKey(k){ k=decodeURIComponent(k); const idx=listings.findIndex(l=>(l._id&&l._id===k)||('demo:'+l.t===k)); if(idx>=0) openDetail(idx); else toast('Annonce introuvable','ti-search'); }
+  function renderReco(){
+    const sec=$('#reco-sec'), el=$('#recoRail'); if(!sec||!el) return;
+    let hist=[]; try{ hist=JSON.parse(localStorage.getItem('zilo_hist')||'[]'); }catch(e){}
+    const seen=new Set(hist.map(h=>h.k));
+    const catScore={}, cityScore={};
+    const add=(l,w)=>{ if(!l)return; const c=(l.cat||'').split(' ')[0]; if(c)catScore[c]=(catScore[c]||0)+w; if(l.city)cityScore[l.city]=(cityScore[l.city]||0)+w; };
+    hist.forEach(h=>add(listingByKey(h.k),2));
+    [...favs].forEach(fk=>add(listingByKey(fk),3));
+    if(!Object.keys(catScore).length){ sec.hidden=true; return; }
+    const scored=listings.map((l,i)=>({l,i}))
+      .filter(({l})=> !(me&&l._uid===me.id) && !seen.has(favKey(l)) )
+      .map(o=>{ const c=(o.l.cat||'').split(' ')[0]; const s=(catScore[c]||0)*3 + (cityScore[o.l.city]||0); return {l:o.l,i:o.i,s}; })
+      .filter(o=>o.s>0).sort((a,b)=>b.s-a.s).slice(0,10);
+    if(!scored.length){ sec.hidden=true; return; }
+    sec.hidden=false;
+    el.innerHTML=scored.map(({l,i})=>`<button class="histcard" onclick="openDetail(${i})"><img src="${IMG(l.imgs[0],200)}" alt="" loading="lazy"><span class="hp tnum">${l.p} <small>${l.u}</small></span><span class="ht">${escapeHtml(l.t)}</span></button>`).join('');
+  }
   function detailNav(d){ const pos=lastItems.findIndex(x=>x.i===currentDetailIdx); const t=lastItems[pos+d]; if(t) openDetail(t.i); }
   addEventListener('keydown',e=>{ const dm=document.getElementById('detail'); if(!dm||!dm.classList.contains('open'))return; if(e.key==='ArrowRight')detailNav(1); else if(e.key==='ArrowLeft')detailNav(-1); });
   async function saveSearch(){
