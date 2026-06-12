@@ -344,6 +344,7 @@
   /* real map (Leaflet) */
   #lmap,#homemap{height:440px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);z-index:0}
   #homemap{height:400px}
+  .map-hint{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(12,10,9,.66);color:#fff;font-size:12px;font-weight:600;padding:7px 13px;border-radius:var(--r-pill);pointer-events:none;white-space:nowrap;backdrop-filter:blur(4px);box-shadow:0 4px 12px rgba(0,0,0,.25)}
   #listings{padding-bottom:8px} #homemap-sec{padding-top:8px}
   .lpin{transform:translateY(-50%);background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:var(--r-pill);padding:5px 11px;font-size:12px;font-weight:700;color:var(--fg);white-space:nowrap;cursor:pointer;transition:.15s var(--ease)}
   .lpin:hover{border-color:var(--accent);color:var(--accent)} .lpin.pro{border-color:var(--blue);color:var(--blue)}
@@ -1291,6 +1292,15 @@
       LMAP2=L.map('homemap',{scrollWheelZoom:false}).setView([33.5731,-7.5898],12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(LMAP2);
       markerLayer2=L.layerGroup().addTo(LMAP2);
+      // Mobile : un doigt fait défiler la page, deux doigts déplacent la carte
+      if(window.matchMedia('(pointer:coarse)').matches){
+        LMAP2.dragging.disable();
+        const c=LMAP2.getContainer();
+        c.addEventListener('touchstart',e=>{ if(e.touches.length>=2) LMAP2.dragging.enable(); else LMAP2.dragging.disable(); },{passive:true});
+        c.addEventListener('touchend',e=>{ if(e.touches.length<2) LMAP2.dragging.disable(); },{passive:true});
+        const hint=document.createElement('div'); hint.className='map-hint'; hint.textContent='Glisse à deux doigts pour déplacer';
+        c.appendChild(hint);
+      }
     }
     setTimeout(()=>LMAP2.invalidateSize(),60);
     markerLayer2.clearLayers();
