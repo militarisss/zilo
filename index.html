@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Zilo — Petites annonces, version 2026</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#A16207">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zilo">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -259,6 +264,11 @@
   .fchip{font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);padding:9px 15px;border-radius:var(--r-pill);display:flex;align-items:center;gap:6px;transition:.2s var(--ease)}
   .fchip:hover{border-color:var(--fg)} .fchip.on{background:var(--primary);color:var(--on-primary);border-color:var(--primary)} .fchip i{font-size:15px}
   .fchip.pro.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .lcontrols{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .geo-near{background:var(--accent-tint);color:var(--accent);border:1px solid var(--glass-brd);border-radius:var(--r-pill);padding:8px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s var(--ease)}
+  .geo-near:hover{background:var(--accent);color:var(--on-accent)}
+  .sortsel{font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);border-radius:var(--r-pill);padding:8px 12px;cursor:pointer;outline:none}
+  .sortsel:focus{border-color:var(--accent)}
   .viewtoggle{display:flex;gap:4px;background:var(--muted);padding:4px;border-radius:var(--r-pill)}
   .vt{font-size:13px;font-weight:600;color:var(--fg-soft);padding:7px 14px;border-radius:var(--r-pill);display:flex;align-items:center;gap:6px}
   .vt.on{background:var(--card);color:var(--fg);box-shadow:var(--shadow)}
@@ -719,9 +729,19 @@
         <button class="fchip" data-tag="part"><i class="ti ti-user"></i> Particuliers</button>
         <button class="fchip" data-tag="bonprix"><i class="ti ti-tag"></i> Bon prix</button>
       </div>
-      <div class="viewtoggle" id="viewToggle">
-        <button class="vt on" data-view="grid"><i class="ti ti-layout-grid"></i> Liste</button>
-        <button class="vt" data-view="map"><i class="ti ti-map-2"></i> Carte</button>
+      <div class="lcontrols">
+        <button class="vt geo-near" id="geoNear"><i class="ti ti-current-location"></i> Autour de moi</button>
+        <select id="sortBy" class="sortsel">
+          <option value="relevance">Pertinence</option>
+          <option value="price-asc">Prix croissant</option>
+          <option value="price-desc">Prix décroissant</option>
+          <option value="recent">Plus récent</option>
+          <option value="near">Plus proche</option>
+        </select>
+        <div class="viewtoggle" id="viewToggle">
+          <button class="vt on" data-view="grid"><i class="ti ti-layout-grid"></i> Liste</button>
+          <button class="vt" data-view="map"><i class="ti ti-map-2"></i> Carte</button>
+        </div>
       </div>
     </div>
 
@@ -932,7 +952,7 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null;
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null;
   const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)));
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
@@ -976,6 +996,46 @@
     });
   }
 
+  function priceOf(l){ return +String(l._price!=null?l._price:l.p).replace(/[^\d]/g,'')||0; }
+  function haversine(a,b,c,d){ const R=6371,t=x=>x*Math.PI/180; const dLat=t(c-a),dLng=t(d-b); const h=Math.sin(dLat/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+  function distOf(l){ return userPos? haversine(userPos.lat,userPos.lng,l.lat,l.lng):0; }
+  function sortItems(items){
+    const a=items.slice();
+    if(sortBy==='price-asc') a.sort((x,y)=>priceOf(x.l)-priceOf(y.l));
+    else if(sortBy==='price-desc') a.sort((x,y)=>priceOf(y.l)-priceOf(x.l));
+    else if(sortBy==='near'&&userPos) a.sort((x,y)=>distOf(x.l)-distOf(y.l));
+    return a;
+  }
+  function shareListing(i){
+    const l=listings[i]; const id=l._id||('demo:'+l.t);
+    const url=location.origin+location.pathname+'#a='+encodeURIComponent(id);
+    if(navigator.share){ navigator.share({title:'Zilo — '+l.t, text:l.t+' · '+l.p+' '+l.u, url}).catch(()=>{}); }
+    else { try{navigator.clipboard.writeText(url);}catch(e){} toast('Lien copié ✓','ti-link'); }
+  }
+  function openFromHash(){
+    const m=location.hash.match(/#a=(.+)/); if(!m) return;
+    const id=decodeURIComponent(m[1]);
+    const idx=listings.findIndex(l=> (l._id&&l._id===id) || ('demo:'+l.t===id));
+    if(idx>=0) openDetail(idx);
+  }
+  addEventListener('hashchange',openFromHash);
+  async function reportListing(i){
+    const l=listings[i];
+    if(!me){toast('Connecte-toi pour signaler','ti-lock');openAuth('login');return;}
+    if(!l._id){toast('Annonce de démonstration','ti-info-circle');return;}
+    const reason=prompt('Pourquoi signaler cette annonce ?','Contenu inapproprié'); if(reason===null)return;
+    const {error}=await sb.from('reports').insert({listing_id:l._id, reporter_id:me.id, reason:reason||'—'});
+    if(error){toast('Erreur : '+error.message,'ti-alert-triangle');return;}
+    toast('Signalement envoyé. Merci 🙏','ti-flag');
+  }
+  const _gn=$('#geoNear'), _sb=$('#sortBy');
+  if(_gn) _gn.addEventListener('click',()=>{
+    if(!navigator.geolocation){toast('Géolocalisation indisponible','ti-alert-triangle');return;}
+    toast('Localisation en cours…','ti-current-location');
+    navigator.geolocation.getCurrentPosition(p=>{ userPos={lat:p.coords.latitude,lng:p.coords.longitude}; sortBy='near'; if(_sb)_sb.value='near'; render(); toast('Trié par distance autour de toi','ti-current-location'); }, ()=>toast('Localisation refusée','ti-alert-triangle'), {enableHighAccuracy:true,timeout:8000});
+  });
+  if(_sb) _sb.addEventListener('change',e=>{ sortBy=e.target.value; if(sortBy==='near'&&!userPos&&_gn){_gn.click();return;} render(); });
+
   let LMAP2=null, markerLayer2=null;
   function updateHomeMap(){
     if(typeof L==='undefined' || !$('#homemap')) return;
@@ -996,7 +1056,7 @@
     if(pts.length) LMAP2.fitBounds(pts,{padding:[40,40],maxZoom:14});
   }
   function render(){
-    const items = filtered();
+    const items = sortItems(filtered());
     updateHomeMap();
     $('#listingsSub').textContent = `${items.length} annonce${items.length>1?'s':''} · trié par l'IA selon ta zone`;
     if(view==='map'){ renderMap(items); return; }
@@ -1083,10 +1143,11 @@
       </div>
       <button class="btn-ghost dmsg" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Contacter le vendeur</button>
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="openReviews(listings[${i}]._uid, listings[${i}].sn)"><i class="ti ti-star"></i> Avis sur le vendeur</button>
+      <button class="btn-ghost dmsg" style="margin-top:8px" onclick="shareListing(${i})"><i class="ti ti-share-3"></i> Partager l'annonce</button>
       <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
       <p class="ddesc">${l.desc}</p>
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
-      <button class="dreport" onclick="toast('Annonce signalée (démo)','ti-flag')"><i class="ti ti-flag"></i> Signaler cette annonce</button>`;
+      <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>`;
     openModal('detail');
   }
   $('#gprev').onclick=()=>setG(gIdx-1); $('#gnext').onclick=()=>setG(gIdx+1);
@@ -1287,7 +1348,7 @@
   function rebuildListings(){ listings.length=0; dbListings.forEach(l=>listings.push(l)); SEED.forEach(l=>listings.push(l)); render(); }
   async function loadListings(){
     try{ const {data,error}=await sb.from('listings').select('*').order('created_at',{ascending:false}).limit(300);
-      if(error){console.warn('load',error.message);return;} dbListings=(data||[]).map(dbToListing); rebuildListings();
+      if(error){console.warn('load',error.message);return;} dbListings=(data||[]).map(dbToListing); rebuildListings(); openFromHash();
     }catch(e){console.warn(e);}
   }
   async function loadFavs(){
@@ -1587,6 +1648,7 @@
   refreshMe();
   sb.auth.onAuthStateChange(()=>refreshMe());
   loadListings();
+  if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
 </body>
 </html>

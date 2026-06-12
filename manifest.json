@@ -1,0 +1,15 @@
+{
+  "name": "Zilo — Petites annonces",
+  "short_name": "Zilo",
+  "description": "Acheter et vendre près de chez soi, au Maroc.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAF9",
+  "theme_color": "#A16207",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
