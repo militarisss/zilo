@@ -245,9 +245,9 @@
   /* STORIES */
   .stories{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 18px}
   .story{display:flex;flex-direction:column;align-items:center;gap:7px;flex-shrink:0;font-size:11px;font-weight:500;color:var(--fg-soft);width:72px}
-  .story .ring{width:64px;height:64px;border-radius:50%;padding:3px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#D85A30);transition:transform .2s var(--ease)}
-  .story:hover .ring{transform:scale(1.06)}
-  .story .ring i{width:100%;height:100%;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:26px;color:var(--accent);place-self:stretch}
+  .story .ring{width:64px;height:64px;border-radius:50%;padding:3px;display:grid;place-items:center;background:linear-gradient(135deg,var(--c1,var(--accent)),var(--c2,#D85A30));transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+  .story:hover .ring{transform:scale(1.07);box-shadow:0 8px 18px -6px var(--c1,var(--accent))}
+  .story .ring i{width:100%;height:100%;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:26px;color:var(--c1,var(--accent));place-self:stretch}
   .story.add .ring{background:var(--muted)} .story.add .ring i{color:var(--fg-soft)}
 
   /* verticals */
@@ -1339,9 +1339,17 @@
   }
 
   // STORIES
-  const cats=[['ti-building-community','Immobilier'],['ti-car','Auto'],['ti-device-mobile','Multimédia'],['ti-armchair','Maison'],['ti-shirt','Mode'],['ti-briefcase','Emploi'],['ti-baby-carriage','Enfance']];
+  const cats=[
+    ['ti-building-community','Immobilier','#2563EB','#60A5FA'],
+    ['ti-car','Auto','#DC2626','#FB7185'],
+    ['ti-device-mobile','Multimédia','#7C3AED','#A78BFA'],
+    ['ti-sofa','Maison','#059669','#34D399'],
+    ['ti-shirt','Mode','#DB2777','#F472B6'],
+    ['ti-briefcase','Emploi','#0891B2','#22D3EE'],
+    ['ti-baby-carriage','Enfance','#EA580C','#FBBF24'],
+  ];
   $('#stories').innerHTML = `<button class="story add"><span class="ring"><i class="ti ti-plus"></i></span>Vendre</button>` +
-    cats.map(c=>`<button class="story"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
+    cats.map(c=>`<button class="story" style="--c1:${c[2]};--c2:${c[3]}"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
   document.querySelectorAll('#stories .story').forEach(s=>s.addEventListener('click',()=>toast('Catégorie : '+s.textContent.trim(),'ti-photo')));
 
   async function toggleFav(btn){
