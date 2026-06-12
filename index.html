@@ -503,6 +503,18 @@
   .of-btns button.no{color:#DC2626}
   .bubble.sys{align-self:center;background:var(--muted)!important;color:var(--fg-soft)!important;font-size:12px;border-radius:99px;padding:6px 14px;display:flex;align-items:center;gap:6px;max-width:none}
   .bubble.sys.ok{color:var(--green)!important} .bubble.sys.no{color:var(--danger)!important}
+  .cmp{position:absolute;top:53px;right:11px;width:36px;height:36px;border-radius:var(--r-pill);background:var(--glass-strong);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;font-size:17px;color:var(--fg);border:1px solid var(--glass-brd);z-index:2;transition:.15s var(--ease)}
+  .cmp:hover{color:var(--blue)} .cmp.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .cmp-bar{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(20px);z-index:90;display:none;align-items:center;gap:10px;background:var(--primary);color:var(--on-primary);padding:9px 10px 9px 18px;border-radius:99px;box-shadow:var(--shadow-lg);opacity:0;transition:.25s var(--ease)}
+  .cmp-bar.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
+  .cmp-bar span{font-size:13px} .cmp-bar b{font-weight:700}
+  .cmp-bar button{font-size:13px;font-weight:600;background:var(--accent);color:var(--on-accent);padding:8px 16px;border-radius:99px}
+  .cmp-bar button.x{background:transparent;color:var(--on-primary);opacity:.7;padding:8px 6px}
+  .cmp-scroll{overflow-x:auto}
+  .cmp-table{border-collapse:collapse;width:100%;min-width:420px}
+  .cmp-table th{text-align:left;font-size:12px;font-weight:600;color:var(--fg-faint);padding:10px;border-bottom:1px solid var(--border);white-space:nowrap;width:86px}
+  .cmp-table td{font-size:13px;padding:10px;border-bottom:1px solid var(--border);border-left:1px solid var(--border);vertical-align:top;min-width:118px}
+  .cmp-ph{width:100%;height:78px;border-radius:8px;overflow:hidden;background:var(--muted)} .cmp-ph img{width:100%;height:100%;object-fit:cover}
 
   .notif-menu{position:absolute;top:100%;right:0;margin-top:8px;width:min(320px,calc(100vw - 28px));background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-lg);z-index:95;max-height:60vh;overflow-y:auto}
   .nm-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
@@ -1059,6 +1071,21 @@
   <div class="reels-scroll" id="reelsScroll"></div>
 </div>
 
+<div id="cmpBar" class="cmp-bar">
+  <span><i class="ti ti-arrows-diff"></i> <b id="cmpCount">0</b> à comparer</span>
+  <button onclick="openCompare()">Comparer</button>
+  <button class="x" onclick="clearCompare()" aria-label="Vider"><i class="ti ti-x"></i></button>
+</div>
+
+<!-- COMPARATEUR MODAL -->
+<div class="modal" id="compare" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Comparateur" style="max-width:760px">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="cmpBody"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"><i class="ti ti-check"></i><span id="toastMsg">Ajouté aux favoris</span></div>
 
 <script>
@@ -1092,7 +1119,7 @@
 
   const favs = new Set();
   const active = new Set(['near']);
-  const following = new Set(), blocked = new Set();
+  const following = new Set(), blocked = new Set(), compare = new Set();
   let view = 'grid';
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
@@ -1154,7 +1181,7 @@
         ${l.video?`<span class="vid-badge"><i class="ti ti-player-play"></i></span>`:''}
         ${owner
           ? `<div class="owner-tools"><button title="Modifier" onclick="event.stopPropagation();openEdit(${i})"><i class="ti ti-pencil"></i></button><button title="Supprimer" onclick="event.stopPropagation();deleteListing(${i})"><i class="ti ti-trash"></i></button></div>`
-          : `<button class="fav ${favs.has(fk)?'on':''}" aria-label="Ajouter aux favoris" data-fk="${fk}" data-i="${i}" onclick="event.stopPropagation();toggleFav(this)"><i class="ti ti-heart"></i></button>`}
+          : `<button class="fav ${favs.has(fk)?'on':''}" aria-label="Ajouter aux favoris" data-fk="${fk}" data-i="${i}" onclick="event.stopPropagation();toggleFav(this)"><i class="ti ti-heart"></i></button><button class="cmp ${compare.has(fk)?'on':''}" aria-label="Comparer" data-fk="${fk}" data-i="${i}" onclick="event.stopPropagation();toggleCompare(this)"><i class="ti ti-arrows-diff"></i></button>`}
       </div>
       <div class="card-body">
         <div class="price tnum">${l.p} <small>${l.u}</small></div>
@@ -1628,6 +1655,39 @@
     closeModal(); render(); toast(adv?(filtered().length+' annonces filtrées'):'Filtres retirés','ti-adjustments-horizontal');
   }
   function clearFilters(){ adv=null; closeModal(); render(); toast('Filtres réinitialisés','ti-x'); }
+  function listingByKey(fk){ return listings.find(l=>(l._id&&l._id===fk)||('demo:'+l.t===fk)); }
+  function toggleCompare(btn){
+    const fk=btn.dataset.fk;
+    if(compare.has(fk)) compare.delete(fk);
+    else { if(compare.size>=4){toast('4 annonces maximum à comparer','ti-info-circle');return;} compare.add(fk); }
+    document.querySelectorAll(`.cmp[data-fk="${CSS.escape(fk)}"]`).forEach(b=>b.classList.toggle('on',compare.has(fk)));
+    updateCompareBar();
+  }
+  function updateCompareBar(){
+    const bar=$('#cmpBar'); if(!bar) return;
+    const c=$('#cmpCount'); if(c) c.textContent=compare.size;
+    bar.classList.toggle('show',compare.size>=2);
+  }
+  function clearCompare(){ compare.clear(); document.querySelectorAll('.cmp.on').forEach(b=>b.classList.remove('on')); updateCompareBar(); closeModal(); }
+  function openCompare(){
+    const items=[...compare].map(listingByKey).filter(Boolean);
+    if(items.length<2){toast('Sélectionne au moins 2 annonces','ti-info-circle');return;}
+    const row=(label,fn)=>`<tr><th>${label}</th>${items.map(l=>`<td>${fn(l)}</td>`).join('')}</tr>`;
+    $('#cmpBody').innerHTML=`<h2 class="serif">Comparer ${items.length} annonces</h2>
+      <div class="cmp-scroll"><table class="cmp-table">
+        <tr><th></th>${items.map(l=>`<td><div class="cmp-ph"><img src="${IMG(l.imgs[0],300)}" alt=""></div></td>`).join('')}</tr>
+        ${row('Titre',l=>escapeHtml(l.t))}
+        ${row('Prix',l=>`<b>${l.p} ${l.u}</b>`)}
+        ${row('Catégorie',l=>escapeHtml(l.cat||'—'))}
+        ${row('État',l=>escapeHtml(l.cond||'—'))}
+        ${row('Lieu',l=>escapeHtml(l.loc||'—'))}
+        ${row('Vendeur',l=>escapeHtml(l.sn)+(l.vrf?' <i class="ti ti-rosette-discount-check" style="color:var(--green)"></i>':'')+(l.pro?' · Pro':''))}
+        ${row('Note',l=>'★ '+l.rt)}
+        ${row('',l=>`<button class="btn-ghost" style="font-size:12px;padding:6px 10px" onclick="openByKey('${encodeURIComponent(l._id||('demo:'+l.t))}')">Voir</button>`)}
+      </table></div>
+      <button class="btn-ghost" style="width:100%;justify-content:center;margin-top:14px" onclick="clearCompare()"><i class="ti ti-x"></i> Vider la comparaison</button>`;
+    openModal('compare');
+  }
   async function openDashboard(){
     if(!me){openAuth('login');return;}
     let nListings=0,totalViews=0,favRecv=0,followers=0,nReviews=0,avgR=0,nConv=0,ids=[];
