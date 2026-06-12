@@ -273,7 +273,14 @@
   .filter-bar{display:flex;gap:8px;flex-wrap:wrap}
   .fchip{font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);padding:9px 15px;border-radius:var(--r-pill);display:flex;align-items:center;gap:6px;transition:.2s var(--ease)}
   .fchip:hover{border-color:var(--fg)} .fchip.on{background:var(--primary);color:var(--on-primary);border-color:var(--primary)} .fchip i{font-size:15px}
-  .fchip.pro.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  /* Une couleur distincte par filtre sélectionné */
+  .fchip[data-tag="near"].on{background:#A16207;border-color:#A16207;color:#fff}
+  .fchip[data-tag="deliv"].on{background:#7C3AED;border-color:#7C3AED;color:#fff}
+  .fchip[data-tag="vrf"].on{background:#059669;border-color:#059669;color:#fff}
+  .fchip[data-tag="pro"].on{background:#2563EB;border-color:#2563EB;color:#fff}
+  .fchip[data-tag="part"].on{background:#DB2777;border-color:#DB2777;color:#fff}
+  .fchip[data-tag="bonprix"].on{background:#EA580C;border-color:#EA580C;color:#fff}
+  .fchip.on i{color:#fff}
   .lcontrols{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .geo-near{background:var(--accent-tint);color:var(--accent);border:1px solid var(--glass-brd);border-radius:var(--r-pill);padding:8px 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:.15s var(--ease)}
   .geo-near:hover{background:var(--accent);color:var(--on-accent)}
@@ -560,6 +567,9 @@
   .dnav{display:flex;justify-content:space-between;margin-bottom:14px}
   .dnav button{font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--muted);border-radius:var(--r-pill);padding:7px 13px;display:flex;align-items:center;gap:5px}
   .dnav button:hover:not(:disabled){color:var(--accent)} .dnav button:disabled{opacity:.4;cursor:default}
+  @keyframes swl{from{opacity:.45;transform:translateX(26px)}to{opacity:1;transform:none}}
+  @keyframes swr{from{opacity:.45;transform:translateX(-26px)}to{opacity:1;transform:none}}
+  .sheet-grid.swl{animation:swl .22s var(--ease)} .sheet-grid.swr{animation:swr .22s var(--ease)}
   .dinfo .dbadges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .dinfo .db{font-size:11px;font-weight:600;padding:4px 11px;border-radius:var(--r-pill)}
   .db.ai{background:var(--accent-tint);color:var(--accent)} .db.deliv{background:var(--green-tint);color:var(--green)} .db.pro{background:var(--blue-tint);color:var(--blue)}
@@ -1645,8 +1655,17 @@
     sec.hidden=false;
     el.innerHTML=scored.map(({l,i})=>`<button class="histcard" onclick="openDetail(${i})"><img src="${IMG(l.imgs[0],200)}" alt="" loading="lazy"><span class="hp tnum">${l.p} <small>${l.u}</small></span><span class="ht">${escapeHtml(l.t)}</span></button>`).join('');
   }
-  function detailNav(d){ const pos=lastItems.findIndex(x=>x.i===currentDetailIdx); const t=lastItems[pos+d]; if(t) openDetail(t.i); }
+  function detailNav(d){ const pos=lastItems.findIndex(x=>x.i===currentDetailIdx); const t=lastItems[pos+d]; if(t){ const sh=document.querySelector('#detail .sheet-grid'); if(sh){ sh.classList.remove('swl','swr'); void sh.offsetWidth; sh.classList.add(d>0?'swl':'swr'); } openDetail(t.i); } else { toast(d>0?'Dernière annonce':'Première annonce','ti-info-circle'); } }
   addEventListener('keydown',e=>{ const dm=document.getElementById('detail'); if(!dm||!dm.classList.contains('open'))return; if(e.key==='ArrowRight')detailNav(1); else if(e.key==='ArrowLeft')detailNav(-1); });
+  // Swipe horizontal : sur la fiche -> annonce suiv/préc · sur la photo -> photo suiv/préc
+  function attachSwipe(el, onLeft, onRight){
+    if(!el||el._swipe) return; el._swipe=true;
+    let x0=null,y0=null,t0=0;
+    el.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; x0=t.clientX; y0=t.clientY; t0=Date.now(); },{passive:true});
+    el.addEventListener('touchend',e=>{ if(x0==null)return; const t=e.changedTouches[0]; const dx=t.clientX-x0, dy=t.clientY-y0, dt=Date.now()-t0; x0=null; if(Math.abs(dx)>55 && Math.abs(dx)>Math.abs(dy)*1.7 && dt<700){ (dx<0?onLeft:onRight)(); } },{passive:true});
+  }
+  { const info=document.getElementById('dinfo'); attachSwipe(info, ()=>detailNav(1), ()=>detailNav(-1)); }
+  { const gm=document.querySelector('#detail .gmain'); attachSwipe(gm, ()=>setG(gIdx+1), ()=>setG(gIdx-1)); }
   async function saveSearch(){
     if(!me){toast('Connecte-toi pour créer une alerte','ti-lock');openAuth('login');return;}
     const query=q.value.trim(); if(!query){toast('Tape d\'abord une recherche','ti-search');return;}
