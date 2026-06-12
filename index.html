@@ -327,6 +327,7 @@
   /* real map (Leaflet) */
   #lmap,#homemap{height:440px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);z-index:0}
   #homemap{height:400px}
+  #listings{padding-bottom:8px} #homemap-sec{padding-top:8px}
   .lpin{transform:translateY(-50%);background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:var(--r-pill);padding:5px 11px;font-size:12px;font-weight:700;color:var(--fg);white-space:nowrap;cursor:pointer;transition:.15s var(--ease)}
   .lpin:hover{border-color:var(--accent);color:var(--accent)} .lpin.pro{border-color:var(--blue);color:var(--blue)}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--fg)} .leaflet-popup-content-wrapper{border-radius:var(--r)!important}
@@ -387,6 +388,14 @@
   .foot-col a{display:block;font-size:14px;color:var(--fg-soft);padding:5px 0;transition:.2s var(--ease)} .foot-col a:hover{color:var(--accent)}
   .foot-brand{max-width:270px} .foot-brand p{font-size:13px;color:var(--fg-faint);margin-top:11px}
   .foot-bot{margin-top:36px;padding-top:22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--fg-faint)}
+
+  /* tableau de bord */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px}
+  .dash-card{background:var(--muted);border-radius:var(--r);padding:16px 10px;text-align:center}
+  .dash-card i{font-size:22px;color:var(--accent)}
+  .dash-card b{display:block;font-size:24px;font-weight:700;letter-spacing:-.5px;margin:6px 0 2px}
+  .dash-card span{font-size:11px;color:var(--fg-faint)}
+  @media(max-width:680px){.dash-grid{grid-template-columns:1fr 1fr}}
 
   /* historique + alertes */
   .histrail{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px}
@@ -480,6 +489,9 @@
   .gthumbs img{width:62px;height:62px;border-radius:9px;object-fit:cover;cursor:pointer;border:2px solid transparent;opacity:.6;transition:.2s}
   .gthumbs img.on{opacity:1;border-color:var(--accent)}
   .dinfo{padding:30px 30px 30px;border-left:1px solid var(--border)}
+  .dnav{display:flex;justify-content:space-between;margin-bottom:14px}
+  .dnav button{font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--muted);border-radius:var(--r-pill);padding:7px 13px;display:flex;align-items:center;gap:5px}
+  .dnav button:hover:not(:disabled){color:var(--accent)} .dnav button:disabled{opacity:.4;cursor:default}
   .dinfo .dbadges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .dinfo .db{font-size:11px;font-weight:600;padding:4px 11px;border-radius:var(--r-pill)}
   .db.ai{background:var(--accent-tint);color:var(--accent)} .db.deliv{background:var(--green-tint);color:var(--green)} .db.pro{background:var(--blue-tint);color:var(--blue)}
@@ -773,7 +785,7 @@
 <!-- CARTE ACCUEIL -->
 <section id="homemap-sec" class="reveal">
   <div class="wrap">
-    <div class="sec-head"><div><h2 class="serif">Autour de toi</h2><p>Toutes les annonces près de chez toi, sur la carte.</p></div></div>
+    <div class="sec-head"><div><h2 class="serif">L'immobilier autour de toi</h2><p>Les biens immobiliers près de chez toi, sur la carte.</p></div></div>
     <div id="homemap"></div>
   </div>
 </section>
@@ -895,6 +907,15 @@
   </div>
 </div>
 
+<!-- DASHBOARD MODAL -->
+<div class="modal" id="dash" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Tableau de bord">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="dashBody"></div>
+  </div>
+</div>
+
 <!-- ALERTS MODAL -->
 <div class="modal" id="alerts" aria-hidden="true">
   <div class="scrim" data-close></div>
@@ -978,7 +999,7 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null;
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null;
   const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)));
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
@@ -1073,7 +1094,7 @@
     setTimeout(()=>LMAP2.invalidateSize(),60);
     markerLayer2.clearLayers();
     const pts=[];
-    filtered().forEach(({l,i})=>{
+    filtered().filter(({l})=>/immobilier/i.test(l.cat||'')).forEach(({l,i})=>{
       const icon=L.divIcon({className:'lpin-wrap',html:`<div class="lpin ${l.pro?'pro':''}">${l.p} ${l.u.replace('/mois','')}</div>`,iconSize:[0,0]});
       const m=L.marker([l.lat,l.lng],{icon}).addTo(markerLayer2);
       m.on('click',()=>openDetail(i));
@@ -1083,6 +1104,7 @@
   }
   function render(){
     const items = sortItems(filtered());
+    lastItems = items;
     updateHomeMap();
     $('#listingsSub').textContent = `${items.length} annonce${items.length>1?'s':''} · trié par l'IA selon ta zone`;
     if(view==='map'){ renderMap(items); return; }
@@ -1144,11 +1166,13 @@
   function setG(n){ gIdx=(n+gImgs.length)%gImgs.length; $('#gimg').src=IMG(gImgs[gIdx],900); $('#gcount').textContent=(gIdx+1)+' / '+gImgs.length;
     document.querySelectorAll('#gthumbs img').forEach((t,k)=>t.classList.toggle('on',k===gIdx)); }
   function openDetail(i){
-    const l=listings[i]; gImgs=l.imgs; gIdx=0; pushHistory(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
+    const l=listings[i]; gImgs=l.imgs; gIdx=0; currentDetailIdx=i; pushHistory(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
     $('#gimg').src=IMG(l.imgs[0],900); $('#gimg').alt=l.t; $('#gcount').textContent='1 / '+l.imgs.length;
     $('#gthumbs').innerHTML=l.imgs.map((id,k)=>`<img src="${IMG(id,160)}" alt="" class="${k===0?'on':''}" onclick="setG(${k})">`).join('');
     const sellerAv = l.pro?`<span class="av pro"><i class="ti ${l.proIcon||'ti-building-store'}"></i></span>`:`<span class="av" style="background:${l.av}">${ini(l.sn)}</span>`;
+    const _pos=lastItems.findIndex(x=>x.i===i);
     $('#dinfo').innerHTML=`
+      <div class="dnav"><button onclick="detailNav(-1)" ${_pos<=0?'disabled':''}><i class="ti ti-chevron-left"></i> Précédent</button><button onclick="detailNav(1)" ${(_pos<0||_pos>=lastItems.length-1)?'disabled':''}>Suivant <i class="ti ti-chevron-right"></i></button></div>
       <div class="dbadges">
         ${l.badge?`<span class="db ${l.badge.cls==='agence'?'pro':l.badge.cls}"><i class="ti ${l.badge.i}"></i> ${l.badge.txt}</span>`:''}
         <span class="db pro" style="background:var(--muted);color:var(--fg-soft)">${l.cat}</span>
@@ -1420,6 +1444,8 @@
     el.innerHTML=h.map(x=>`<button class="histcard" onclick="openByKey('${encodeURIComponent(x.k)}')"><img src="${IMG(x.img,200)}" alt="" loading="lazy"><span class="hp tnum">${x.p} <small>${x.u}</small></span><span class="ht">${escapeHtml(x.t)}</span></button>`).join('');
   }
   function openByKey(k){ k=decodeURIComponent(k); const idx=listings.findIndex(l=>(l._id&&l._id===k)||('demo:'+l.t===k)); if(idx>=0) openDetail(idx); else toast('Annonce introuvable','ti-search'); }
+  function detailNav(d){ const pos=lastItems.findIndex(x=>x.i===currentDetailIdx); const t=lastItems[pos+d]; if(t) openDetail(t.i); }
+  addEventListener('keydown',e=>{ const dm=document.getElementById('detail'); if(!dm||!dm.classList.contains('open'))return; if(e.key==='ArrowRight')detailNav(1); else if(e.key==='ArrowLeft')detailNav(-1); });
   async function saveSearch(){
     if(!me){toast('Connecte-toi pour créer une alerte','ti-lock');openAuth('login');return;}
     const query=q.value.trim(); if(!query){toast('Tape d\'abord une recherche','ti-search');return;}
@@ -1436,6 +1462,27 @@
   }
   function runAlert(query){ closeModal(); q.value=decodeURIComponent(query); runSearch(); }
   async function delAlert(id){ try{ await sb.from('saved_searches').delete().eq('id',id); }catch(e){} openAlerts(); }
+  async function openDashboard(){
+    if(!me){openAuth('login');return;}
+    let nListings=0,totalViews=0,favRecv=0,followers=0,nReviews=0,avgR=0,nConv=0,ids=[];
+    try{ const mine=await sb.from('listings').select('id,views').eq('user_id',me.id); ids=(mine.data||[]).map(r=>r.id); nListings=ids.length; totalViews=(mine.data||[]).reduce((s,r)=>s+(r.views||0),0); }catch(e){}
+    try{ if(ids.length){ const f=await sb.from('favorites').select('listing_id',{count:'exact',head:true}).in('listing_id',ids); favRecv=f.count||0; } }catch(e){}
+    try{ const fo=await sb.from('follows').select('*',{count:'exact',head:true}).eq('seller_id',me.id); followers=fo.count||0; }catch(e){}
+    try{ const rv=await sb.from('reviews').select('rating').eq('target_user_id',me.id); const li=rv.data||[]; nReviews=li.length; avgR=li.length?(li.reduce((s,r)=>s+r.rating,0)/li.length):0; }catch(e){}
+    try{ const cv=await sb.from('conversations').select('*',{count:'exact',head:true}).or('buyer_id.eq.'+me.id+',seller_id.eq.'+me.id); nConv=cv.count||0; }catch(e){}
+    const card=(ic,val,lab)=>`<div class="dash-card"><i class="ti ${ic}"></i><b>${val}</b><span>${lab}</span></div>`;
+    $('#dashBody').innerHTML=`<h2 class="serif">Tableau de bord</h2><p class="sub">Bonjour ${escapeHtml(me.name.split(' ')[0])} · voici tes statistiques.</p>
+      <div class="dash-grid">
+        ${card('ti-news',nListings,'annonces')}
+        ${card('ti-eye',totalViews,'vues totales')}
+        ${card('ti-heart',favRecv,'favoris reçus')}
+        ${card('ti-users',followers,'abonnés')}
+        ${card('ti-star',(avgR?avgR.toFixed(1):'—'),'note ('+nReviews+' avis)')}
+        ${card('ti-message-circle',nConv,'conversations')}
+      </div>
+      <button class="btn-primary" style="width:100%;justify-content:center" onclick="closeModal();openPost()"><i class="ti ti-plus"></i> Déposer une annonce</button>`;
+    openModal('dash');
+  }
   function openEdit(i){ const l=listings[i]; if(!me||!l._uid||l._uid!==me.id){toast('Action non autorisée','ti-lock');return;} renderPost(l); openModal('post'); }
   async function deleteListing(i){
     const l=listings[i]; if(!me||l._uid!==me.id)return;
@@ -1531,11 +1578,13 @@
     m.innerHTML=`<div class="who"><b>${u.name}</b><span>${u.type==='pro'?'Compte professionnel':'Particulier'}${u.vrf?' · vérifié ✓':''}</span></div>
       <a id="amPost"><i class="ti ti-plus"></i> Déposer une annonce</a>
       <a id="amMine"><i class="ti ti-list-details"></i> Mes annonces</a>
+      <a id="amDash"><i class="ti ti-chart-bar"></i> Tableau de bord</a>
       <a id="amAlerts"><i class="ti ti-bell"></i> Mes alertes</a>
       <a id="amOut"><i class="ti ti-logout"></i> Se déconnecter</a>`;
     document.querySelector('.acc-wrap').appendChild(m);
     m.querySelector('#amPost').onclick=()=>{m.remove();openPost();};
     m.querySelector('#amMine').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid===me.id);render();const n=filtered().length;toast(n+' annonce'+(n>1?'s':'')+' à toi','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
+    m.querySelector('#amDash').onclick=()=>{m.remove();openDashboard();};
     m.querySelector('#amAlerts').onclick=()=>{m.remove();openAlerts();};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
   }
