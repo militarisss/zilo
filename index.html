@@ -570,6 +570,20 @@
   @keyframes swl{from{opacity:.45;transform:translateX(26px)}to{opacity:1;transform:none}}
   @keyframes swr{from{opacity:.45;transform:translateX(-26px)}to{opacity:1;transform:none}}
   .sheet-grid.swl{animation:swl .22s var(--ease)} .sheet-grid.swr{animation:swr .22s var(--ease)}
+  /* Critères façon leboncoin */
+  .dcrit-h{font-size:15px;font-weight:700;margin:22px 0 10px}
+  .dcrit{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .dcrit-item{background:var(--card);padding:11px 13px;display:flex;flex-direction:column;gap:3px}
+  .dcrit-item .k{font-size:10.5px;color:var(--fg-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .dcrit-item .v{font-size:14px;font-weight:600;color:var(--fg);display:flex;align-items:center;gap:5px} .dcrit-item .v i{font-size:15px;color:var(--accent)}
+  /* Barre de contact collante (mobile) */
+  .dbar{display:none}
+  @media(max-width:680px){
+    .dbar{display:flex;align-items:center;gap:8px;position:sticky;bottom:0;margin:18px -18px -18px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--border);box-shadow:0 -6px 18px rgba(0,0,0,.06);z-index:6}
+    .dbar-price{font-weight:800;font-size:17px;white-space:nowrap;margin-right:2px} .dbar-price small{font-weight:600;font-size:12px;color:var(--fg-soft)}
+    .dbar .btn-ghost,.dbar .btn-primary{flex:1;justify-content:center;padding:11px 10px;font-size:13px}
+    .dinfo .dactions{display:none}
+  }
   .dinfo .dbadges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .dinfo .db{font-size:11px;font-weight:600;padding:4px 11px;border-radius:var(--r-pill)}
   .db.ai{background:var(--accent-tint);color:var(--accent)} .db.deliv{background:var(--green-tint);color:var(--green)} .db.pro{background:var(--blue-tint);color:var(--blue)}
@@ -641,7 +655,7 @@
     .verticals{grid-template-columns:repeat(3,1fr)} .vert.feat{grid-column:span 3}
     .grid{grid-template-columns:repeat(2,1fr)} .feats{grid-template-columns:1fr}
     .sell{grid-template-columns:1fr;padding:32px} .verify{grid-template-columns:1fr}
-    .sheet-grid{grid-template-columns:1fr} .dinfo{border-left:none;border-top:1px solid var(--border)}
+    .sheet-grid{grid-template-columns:1fr} .dinfo{border-left:none;border-top:1px solid var(--border);padding:18px}
     .gmain{aspect-ratio:16/11} .store-grid{grid-template-columns:repeat(2,1fr)}
   }
   @media(max-width:680px){
@@ -1351,6 +1365,17 @@
   let gImgs=[], gIdx=0;
   function setG(n){ gIdx=(n+gImgs.length)%gImgs.length; $('#gimg').src=IMG(gImgs[gIdx],900); $('#gcount').textContent=(gIdx+1)+' / '+gImgs.length;
     document.querySelectorAll('#gthumbs img').forEach((t,k)=>t.classList.toggle('on',k===gIdx)); }
+  function critHTML(l){
+    const rows=[];
+    rows.push(['Catégorie',(l.cat||'—').replace(/›/g,'·'),'ti-category-2']);
+    if(l.cond) rows.push(['État',l.cond,'ti-sparkles']);
+    if(l.city) rows.push(['Localisation',l.city,'ti-map-pin']);
+    rows.push(['Type de vendeur',l.pro?'Professionnel':'Particulier',l.pro?'ti-building-store':'ti-user']);
+    if(l.tags&&l.tags.includes('deliv')) rows.push(['Livraison','Possible','ti-truck-delivery']);
+    if(l.vrf) rows.push(['Vérification','Vendeur vérifié','ti-rosette-discount-check']);
+    if(!rows.length) return '';
+    return `<div class="dcrit-h">Critères</div><div class="dcrit">${rows.map(([k,v,ic])=>`<div class="dcrit-item"><span class="k">${k}</span><span class="v"><i class="ti ${ic}"></i> ${escapeHtml(String(v))}</span></div>`).join('')}</div>`;
+  }
   function openDetail(i){
     const l=listings[i]; gImgs=l.imgs; gIdx=0; currentDetailIdx=i; pushHistory(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
     $('#gimg').src=IMG(l.imgs[0],900); $('#gimg').alt=l.t; $('#gcount').textContent='1 / '+l.imgs.length;
@@ -1367,6 +1392,7 @@
       <h2>${l.t}</h2>
       <div class="dloc"><i class="ti ti-map-pin"></i> ${l.loc}</div>
       ${l.online?`<div class="dlive"><span class="dot"></span> En ligne · vu par ${l.views} personnes aujourd'hui</div>`:`<div class="dloc" style="margin-bottom:18px"><i class="ti ti-eye"></i> Vu par ${l.views} personnes</div>`}
+      ${critHTML(l)}
       <div class="dseller" onclick="${l._uid?`openStore(${i})`:`toast('Profil de démonstration','ti-user')`}">
         ${sellerAv}
         <div class="info"><div class="nm">${l.sn} ${l.vrf?'<i class="ti ti-rosette-discount-check vchip"></i>':''} ${l.pro?'<span class="protag">Pro</span>':''}</div>
@@ -1384,7 +1410,12 @@
       <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
       <p class="ddesc">${l.desc}</p>
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
-      <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>${(l._uid&&me&&l._uid!==me.id)?`<button class="dreport" style="margin-left:16px" onclick="toggleBlock(${i})"><i class="ti ti-ban"></i> Bloquer le vendeur</button>`:''}`;
+      <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>${(l._uid&&me&&l._uid!==me.id)?`<button class="dreport" style="margin-left:16px" onclick="toggleBlock(${i})"><i class="ti ti-ban"></i> Bloquer le vendeur</button>`:''}
+      <div class="dbar">
+        <span class="dbar-price tnum">${l.p} <small>${l.u}</small></span>
+        <button class="btn-ghost" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Message</button>
+        <button class="btn-primary" onclick="makeOffer(${i})"><i class="ti ti-message-2"></i> Offre</button>
+      </div>`;
     openModal('detail');
   }
   $('#gprev').onclick=()=>setG(gIdx-1); $('#gnext').onclick=()=>setG(gIdx+1);
