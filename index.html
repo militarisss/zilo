@@ -388,6 +388,17 @@
   .foot-brand{max-width:270px} .foot-brand p{font-size:13px;color:var(--fg-faint);margin-top:11px}
   .foot-bot{margin-top:36px;padding-top:22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--fg-faint)}
 
+  /* historique + alertes */
+  .histrail{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px}
+  .histcard{flex-shrink:0;width:132px;text-align:left;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:.2s var(--ease)}
+  .histcard:hover{border-color:var(--accent);transform:translateY(-3px)}
+  .histcard img{width:100%;height:82px;object-fit:cover}
+  .histcard .hp{display:block;font-size:14px;font-weight:700;padding:7px 9px 0} .histcard .hp small{font-size:10px;color:var(--fg-faint);font-weight:500}
+  .histcard .ht{display:block;font-size:11px;color:var(--fg-soft);padding:2px 9px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .alert-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px}
+  .alert-item>div{flex:1;cursor:pointer} .alert-item b{font-size:14px;display:block} .alert-item small{font-size:12px;color:var(--fg-faint)}
+  .alert-item button{width:34px;height:34px;border-radius:8px;color:var(--fg-faint);background:var(--muted);display:grid;place-items:center} .alert-item button:hover{color:var(--danger)}
+
   /* owner tools + compteur photos + avis */
   .owner-tools{position:absolute;top:11px;right:11px;display:flex;gap:6px;z-index:2}
   .owner-tools button{width:34px;height:34px;border-radius:var(--r-pill);background:var(--glass-strong);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--glass-brd);display:grid;place-items:center;font-size:16px;color:var(--fg);transition:.15s var(--ease)}
@@ -720,6 +731,11 @@
 
     <div class="stories scrollx" id="stories"></div>
 
+    <div id="hist-sec" hidden>
+      <h2 class="serif" style="font-size:20px;margin:6px 0 12px">Vu récemment</h2>
+      <div class="histrail scrollx" id="histRail"></div>
+    </div>
+
     <div class="lbar">
       <div class="filter-bar" id="filterBar">
         <button class="fchip on" data-tag="near"><i class="ti ti-bolt"></i> Près de moi</button>
@@ -879,6 +895,15 @@
   </div>
 </div>
 
+<!-- ALERTS MODAL -->
+<div class="modal" id="alerts" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Mes alertes">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="alertsBody"></div>
+  </div>
+</div>
+
 <!-- REVIEWS MODAL -->
 <div class="modal" id="rev" aria-hidden="true">
   <div class="scrim" data-close></div>
@@ -948,12 +973,13 @@
 
   const favs = new Set();
   const active = new Set(['near']);
+  const following = new Set(), blocked = new Set();
   let view = 'grid';
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
   let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null;
-  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)));
+  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)));
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
   function cardHTML(l,i,delay){
@@ -1118,7 +1144,7 @@
   function setG(n){ gIdx=(n+gImgs.length)%gImgs.length; $('#gimg').src=IMG(gImgs[gIdx],900); $('#gcount').textContent=(gIdx+1)+' / '+gImgs.length;
     document.querySelectorAll('#gthumbs img').forEach((t,k)=>t.classList.toggle('on',k===gIdx)); }
   function openDetail(i){
-    const l=listings[i]; gImgs=l.imgs; gIdx=0;
+    const l=listings[i]; gImgs=l.imgs; gIdx=0; pushHistory(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
     $('#gimg').src=IMG(l.imgs[0],900); $('#gimg').alt=l.t; $('#gcount').textContent='1 / '+l.imgs.length;
     $('#gthumbs').innerHTML=l.imgs.map((id,k)=>`<img src="${IMG(id,160)}" alt="" class="${k===0?'on':''}" onclick="setG(${k})">`).join('');
     const sellerAv = l.pro?`<span class="av pro"><i class="ti ${l.proIcon||'ti-building-store'}"></i></span>`:`<span class="av" style="background:${l.av}">${ini(l.sn)}</span>`;
@@ -1144,10 +1170,11 @@
       <button class="btn-ghost dmsg" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Contacter le vendeur</button>
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="openReviews(listings[${i}]._uid, listings[${i}].sn)"><i class="ti ti-star"></i> Avis sur le vendeur</button>
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="shareListing(${i})"><i class="ti ti-share-3"></i> Partager l'annonce</button>
+      ${(l._uid&&me&&l._uid!==me.id)?`<button class="btn-ghost dmsg" style="margin-top:8px" onclick="toggleFollow(${i},this)"><i class="ti ${following.has(l._uid)?'ti-user-check':'ti-user-plus'}"></i> ${following.has(l._uid)?'Vendeur suivi':'Suivre le vendeur'}</button>`:''}
       <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
       <p class="ddesc">${l.desc}</p>
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
-      <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>`;
+      <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>${(l._uid&&me&&l._uid!==me.id)?`<button class="dreport" style="margin-left:16px" onclick="toggleBlock(${i})"><i class="ti ti-ban"></i> Bloquer le vendeur</button>`:''}`;
     openModal('detail');
   }
   $('#gprev').onclick=()=>setG(gIdx-1); $('#gnext').onclick=()=>setG(gIdx+1);
@@ -1294,7 +1321,7 @@
     render();
     const n=filtered().length;
     $('#aiText').innerHTML=`<b>${n} annonce${n>1?'s':''}</b> ${maxPrice?('à moins de '+maxPrice.toLocaleString('fr-FR')+' dh '):''}correspondent à ta recherche.`;
-    $('#aiFilters').innerHTML=(maxPrice?`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> &lt; ${maxPrice.toLocaleString('fr-FR')} dh</span>`:'')+words.slice(0,4).map(w=>`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> ${w}</span>`).join('')+`<button class="alertbtn" onclick="clearSearch()"><i class="ti ti-x"></i> Effacer</button>`;
+    $('#aiFilters').innerHTML=(maxPrice?`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> &lt; ${maxPrice.toLocaleString('fr-FR')} dh</span>`:'')+words.slice(0,4).map(w=>`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> ${w}</span>`).join('')+`<button class="alertbtn" onclick="saveSearch()"><i class="ti ti-bell"></i> Créer une alerte</button><button class="alertbtn" onclick="clearSearch()"><i class="ti ti-x"></i> Effacer</button>`;
     $('#aiPanel').classList.add('show');
     $('#listings').scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -1340,7 +1367,7 @@
       imgs:(Array.isArray(r.images)&&r.images.length)?r.images:[ r.image_url || fallbackImg(r.category) ],
       badge: r.verified?{cls:'deliv',i:'ti-rosette-discount-check',txt:'Vérifié'}:{cls:'ai',i:'ti-clock',txt:'Nouveau'},
       sn:r.seller_name||'Vendeur', pro:!!r.pro, proIcon:r.pro?'ti-building-store':null, av:'#A16207',
-      rt:'nouveau', reviews:0, vrf:!!r.verified, views:1, online:true, desc:r.description||'Pas de description.',
+      rt:'nouveau', reviews:0, vrf:!!r.verified, views:r.views||0, online:true, desc:r.description||'Pas de description.',
       tags:['near','recent', r.pro?'pro':'part'], _uid:r.user_id, _id:r.id, cond:r.cond, _price:r.price };
   }
   const SEED=listings.slice();
@@ -1357,6 +1384,58 @@
     if(me){ try{ const {data}=await sb.from('favorites').select('listing_id').eq('user_id',me.id); (data||[]).forEach(r=>favs.add(r.listing_id)); }catch(e){} }
     const c=$('#favCnt'); if(c){ c.textContent=favs.size; c.classList.toggle('show',favs.size>0); }
   }
+  async function loadSocial(){
+    following.clear(); blocked.clear();
+    if(!me) return;
+    try{ const f=await sb.from('follows').select('seller_id').eq('follower_id',me.id); (f.data||[]).forEach(r=>following.add(r.seller_id)); }catch(e){}
+    try{ const b=await sb.from('blocks').select('blocked_id').eq('blocker_id',me.id); (b.data||[]).forEach(r=>blocked.add(r.blocked_id)); }catch(e){}
+  }
+  async function toggleFollow(i, btn){
+    if(!me){toast('Connecte-toi','ti-lock');openAuth('login');return;}
+    const l=listings[i], sid=l._uid; if(!sid||sid===me.id) return;
+    const adding=!following.has(sid);
+    if(adding) following.add(sid); else following.delete(sid);
+    if(btn) btn.innerHTML=`<i class="ti ${adding?'ti-user-check':'ti-user-plus'}"></i> ${adding?'Vendeur suivi':'Suivre le vendeur'}`;
+    try{ if(adding) await sb.from('follows').insert({follower_id:me.id, seller_id:sid}); else await sb.from('follows').delete().eq('follower_id',me.id).eq('seller_id',sid); }catch(e){}
+    toast(adding?('Tu suis '+l.sn):('Tu ne suis plus '+l.sn),'ti-user-check');
+  }
+  async function toggleBlock(i){
+    if(!me){toast('Connecte-toi','ti-lock');return;}
+    const l=listings[i], sid=l._uid; if(!sid||sid===me.id) return;
+    if(!confirm('Bloquer '+l.sn+' ? Tu ne verras plus ses annonces.')) return;
+    blocked.add(sid);
+    try{ await sb.from('blocks').insert({blocker_id:me.id, blocked_id:sid}); }catch(e){}
+    closeModal(); render(); toast(l.sn+' bloqué','ti-ban');
+  }
+  function pushHistory(l){
+    const key=l._id||('demo:'+l.t);
+    try{ let h=JSON.parse(localStorage.getItem('zilo_hist')||'[]'); h=h.filter(x=>x.k!==key); h.unshift({k:key,t:l.t,p:l.p,u:l.u,img:l.imgs[0]}); localStorage.setItem('zilo_hist',JSON.stringify(h.slice(0,12))); }catch(e){}
+    renderHistory();
+  }
+  function renderHistory(){
+    const el=$('#histRail'), sec=$('#hist-sec'); if(!el||!sec) return;
+    let h=[]; try{ h=JSON.parse(localStorage.getItem('zilo_hist')||'[]'); }catch(e){}
+    if(!h.length){ sec.hidden=true; return; }
+    sec.hidden=false;
+    el.innerHTML=h.map(x=>`<button class="histcard" onclick="openByKey('${encodeURIComponent(x.k)}')"><img src="${IMG(x.img,200)}" alt="" loading="lazy"><span class="hp tnum">${x.p} <small>${x.u}</small></span><span class="ht">${escapeHtml(x.t)}</span></button>`).join('');
+  }
+  function openByKey(k){ k=decodeURIComponent(k); const idx=listings.findIndex(l=>(l._id&&l._id===k)||('demo:'+l.t===k)); if(idx>=0) openDetail(idx); else toast('Annonce introuvable','ti-search'); }
+  async function saveSearch(){
+    if(!me){toast('Connecte-toi pour créer une alerte','ti-lock');openAuth('login');return;}
+    const query=q.value.trim(); if(!query){toast('Tape d\'abord une recherche','ti-search');return;}
+    const {error}=await sb.from('saved_searches').insert({user_id:me.id, query, city:geoCity});
+    if(error){toast('Erreur : '+error.message,'ti-alert-triangle');return;}
+    toast('Alerte créée ✓ on te préviendra','ti-bell');
+  }
+  async function openAlerts(){
+    if(!me){openAuth('login');return;}
+    let list=[]; try{ const {data}=await sb.from('saved_searches').select('*').eq('user_id',me.id).order('created_at',{ascending:false}); list=data||[]; }catch(e){}
+    $('#alertsBody').innerHTML=`<h2 class="serif">Mes alertes</h2><p class="sub">On te préviendra quand une annonce correspond.</p>
+      ${list.length?list.map(s=>`<div class="alert-item"><div onclick="runAlert('${encodeURIComponent(s.query)}')"><b>${escapeHtml(s.query)}</b><small>${escapeHtml(s.city||'')}</small></div><button onclick="delAlert('${s.id}')" aria-label="Supprimer"><i class="ti ti-trash"></i></button></div>`).join(''):'<p class="rev-hint">Aucune alerte. Lance une recherche puis « Créer une alerte ».</p>'}`;
+    openModal('alerts');
+  }
+  function runAlert(query){ closeModal(); q.value=decodeURIComponent(query); runSearch(); }
+  async function delAlert(id){ try{ await sb.from('saved_searches').delete().eq('id',id); }catch(e){} openAlerts(); }
   function openEdit(i){ const l=listings[i]; if(!me||!l._uid||l._uid!==me.id){toast('Action non autorisée','ti-lock');return;} renderPost(l); openModal('post'); }
   async function deleteListing(i){
     const l=listings[i]; if(!me||l._uid!==me.id)return;
@@ -1452,10 +1531,12 @@
     m.innerHTML=`<div class="who"><b>${u.name}</b><span>${u.type==='pro'?'Compte professionnel':'Particulier'}${u.vrf?' · vérifié ✓':''}</span></div>
       <a id="amPost"><i class="ti ti-plus"></i> Déposer une annonce</a>
       <a id="amMine"><i class="ti ti-list-details"></i> Mes annonces</a>
+      <a id="amAlerts"><i class="ti ti-bell"></i> Mes alertes</a>
       <a id="amOut"><i class="ti ti-logout"></i> Se déconnecter</a>`;
     document.querySelector('.acc-wrap').appendChild(m);
     m.querySelector('#amPost').onclick=()=>{m.remove();openPost();};
     m.querySelector('#amMine').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid===me.id);render();const n=filtered().length;toast(n+' annonce'+(n>1?'s':'')+' à toi','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
+    m.querySelector('#amAlerts').onclick=()=>{m.remove();openAlerts();};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
   }
   document.addEventListener('click',e=>{const m=document.querySelector('.acc-menu');if(m&&!m.contains(e.target)&&!$('#accBtn').contains(e.target))m.remove();});
@@ -1564,8 +1645,8 @@
   function updateMsgBadge(){ const b=$('#msgCnt'); if(!b)return; b.textContent=unread; b.classList.toggle('show',unread>0); }
   function afterAuth(){
     loadFavs();
-    if(me){ loadConvs(); refreshUnread(); subscribeChat(); loadListings(); }
-    else { convs=[]; unread=0; updateMsgBadge(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} render(); }
+    if(me){ loadConvs(); refreshUnread(); subscribeChat(); loadSocial(); loadListings(); }
+    else { convs=[]; unread=0; updateMsgBadge(); following.clear(); blocked.clear(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} render(); }
   }
   async function refreshUnread(){
     if(!me){unread=0;updateMsgBadge();return;}
@@ -1648,6 +1729,7 @@
   refreshMe();
   sb.auth.onAuthStateChange(()=>refreshMe());
   loadListings();
+  renderHistory();
   if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
 </body>
