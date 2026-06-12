@@ -377,6 +377,26 @@
   .foot-brand{max-width:270px} .foot-brand p{font-size:13px;color:var(--fg-faint);margin-top:11px}
   .foot-bot{margin-top:36px;padding-top:22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--fg-faint)}
 
+  /* owner tools + compteur photos + avis */
+  .owner-tools{position:absolute;top:11px;right:11px;display:flex;gap:6px;z-index:2}
+  .owner-tools button{width:34px;height:34px;border-radius:var(--r-pill);background:var(--glass-strong);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--glass-brd);display:grid;place-items:center;font-size:16px;color:var(--fg);transition:.15s var(--ease)}
+  .owner-tools button:hover{color:var(--accent)} .owner-tools button:last-child:hover{color:var(--danger)}
+  .photo-count{position:absolute;bottom:11px;right:11px;font-size:11px;font-weight:600;color:#fff;background:rgba(12,10,9,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:4px 9px;border-radius:var(--r-pill);display:flex;align-items:center;gap:4px;z-index:2}
+  .rev-summary{display:flex;align-items:center;gap:10px;margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .rev-summary b{font-size:30px;font-weight:700;letter-spacing:-.5px}
+  .rev-summary small{font-size:13px;color:var(--fg-faint)}
+  .stars-show i,.stars-pick i{color:var(--border);font-size:18px} .stars-show i.on,.stars-pick i.on{color:var(--star)}
+  .rev-form{background:var(--muted);border-radius:var(--r);padding:14px;margin-bottom:18px}
+  .stars-pick{display:flex;gap:6px;margin-bottom:10px;cursor:pointer} .stars-pick i{font-size:26px;transition:.1s}
+  .rev-form textarea{width:100%;border:1px solid var(--border);border-radius:9px;padding:10px;font-family:inherit;font-size:14px;background:var(--card);color:var(--fg);min-height:60px;resize:vertical;margin-bottom:10px;outline:none}
+  .rev-form textarea:focus{border-color:var(--accent)}
+  .rev-form .btn-primary{width:100%;justify-content:center}
+  .rev-list{display:flex;flex-direction:column;gap:12px}
+  .rev-item{border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+  .rev-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px} .rev-head b{font-size:14px;font-weight:600}
+  .rev-item p{font-size:13px;color:var(--fg-soft);line-height:1.5}
+  .rev-hint{font-size:13px;color:var(--fg-faint);text-align:center;padding:14px}
+
   /* ===== Chat ===== */
   .chatsheet{width:min(820px,96vw);height:min(640px,86vh);display:flex;flex-direction:column;overflow:hidden;padding:0}
   .chatsheet .sheet-close{margin:10px 10px -38px auto}
@@ -830,6 +850,15 @@
   </div>
 </div>
 
+<!-- REVIEWS MODAL -->
+<div class="modal" id="rev" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Avis vendeur">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="revBody"></div>
+  </div>
+</div>
+
 <!-- CHAT MODAL -->
 <div class="modal" id="chat" aria-hidden="true">
   <div class="scrim" data-close></div>
@@ -894,16 +923,21 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null;
-  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)));
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null;
+  const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)));
 
+  function favKey(l){ return l._id || ('demo:'+l.t); }
   function cardHTML(l,i,delay){
+    const owner = (typeof me!=='undefined' && me && l._uid && l._uid===me.id);
+    const fk = favKey(l);
     return `<article class="card" tabindex="0" style="animation-delay:${delay}ms" onclick="openDetail(${i})" onkeydown="if(event.key==='Enter')openDetail(${i})">
       <div class="ph loading">
         <img src="${IMG(l.imgs[0])}" alt="${l.t}" loading="lazy" width="600" height="450" onload="this.classList.add('ld');this.parentElement.classList.remove('loading')">
         ${l.badge?`<span class="badge ${l.badge.cls}"><i class="ti ${l.badge.i}"></i> ${l.badge.txt}</span>`:''}
-        ${l.views>40?`<span class="urg"><span class="dot"></span> ${l.views} personnes regardent</span>`:''}
-        <button class="fav ${favs.has(l.t)?'on':''}" aria-label="Ajouter aux favoris" data-t="${l.t}" onclick="event.stopPropagation();toggleFav(this)"><i class="ti ti-heart"></i></button>
+        ${l.imgs.length>1?`<span class="photo-count"><i class="ti ti-photo"></i> ${l.imgs.length}</span>`:''}
+        ${owner
+          ? `<div class="owner-tools"><button title="Modifier" onclick="event.stopPropagation();openEdit(${i})"><i class="ti ti-pencil"></i></button><button title="Supprimer" onclick="event.stopPropagation();deleteListing(${i})"><i class="ti ti-trash"></i></button></div>`
+          : `<button class="fav ${favs.has(fk)?'on':''}" aria-label="Ajouter aux favoris" data-fk="${fk}" data-i="${i}" onclick="event.stopPropagation();toggleFav(this)"><i class="ti ti-heart"></i></button>`}
       </div>
       <div class="card-body">
         <div class="price tnum">${l.p} <small>${l.u}</small></div>
@@ -971,13 +1005,17 @@
     cats.map(c=>`<button class="story"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
   document.querySelectorAll('#stories .story').forEach(s=>s.addEventListener('click',()=>toast('Catégorie : '+s.textContent.trim(),'ti-photo')));
 
-  function toggleFav(btn){
-    const t=btn.dataset.t;
-    if(favs.has(t)){favs.delete(t);btn.classList.remove('on');} else {favs.add(t);btn.classList.add('on');}
-    document.querySelectorAll(`.fav[data-t="${CSS.escape(t)}"]`).forEach(b=>b.classList.toggle('on',favs.has(t)));
+  async function toggleFav(btn){
+    const fk=btn.dataset.fk; const i=+btn.dataset.i; const l=listings[i];
+    const adding=!favs.has(fk);
+    if(adding) favs.add(fk); else favs.delete(fk);
+    document.querySelectorAll(`.fav[data-fk="${CSS.escape(fk)}"]`).forEach(b=>b.classList.toggle('on',adding));
     const c=$('#favCnt'); c.textContent=favs.size; c.classList.toggle('show',favs.size>0);
-    try{localStorage.setItem('zilo_favs',JSON.stringify([...favs]));}catch(e){}
-    toast(favs.has(t)?'Ajouté aux favoris':'Retiré des favoris','ti-heart');
+    if(me && l && l._id){
+      try{ if(adding) await sb.from('favorites').insert({user_id:me.id, listing_id:l._id}); else await sb.from('favorites').delete().eq('user_id',me.id).eq('listing_id',l._id); }catch(e){}
+    }
+    try{ localStorage.setItem('zilo_favs', JSON.stringify([...favs].filter(k=>String(k).startsWith('demo:')))); }catch(e){}
+    toast(adding?'Ajouté aux favoris':'Retiré des favoris','ti-heart');
   }
 
   let tT;
@@ -1015,6 +1053,7 @@
         <button class="btn-ghost" onclick="toast('Paiement protégé (démo)','ti-shield-check')"><i class="ti ti-shopping-bag"></i> Acheter</button>
       </div>
       <button class="btn-ghost dmsg" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Contacter le vendeur</button>
+      <button class="btn-ghost dmsg" style="margin-top:8px" onclick="openReviews(listings[${i}]._uid, listings[${i}].sn)"><i class="ti ti-star"></i> Avis sur le vendeur</button>
       <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
       <p class="ddesc">${l.desc}</p>
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
@@ -1145,15 +1184,27 @@
     {k:['voiture','citadine','auto','clio'],f:['automatique','< 90 000 dh','faible kilométrage','1ère main'],n:14},
     {k:['canapé','canape','sofa','meuble'],f:['canapé d\'angle','bon état','ce week-end','remise en main propre'],n:6},
   ];
+  function clearSearch(){ searchPred=null; q.value=''; const h=$('#hq'); if(h)h.value=''; $('#aiPanel').classList.remove('show'); render(); }
   function runSearch(){
-    const v=q.value.toLowerCase().trim();
-    if(!v){toast('Décris ce que tu cherches','ti-sparkles');q.focus();return;}
-    const match=filtersByKeyword.find(m=>m.k.some(x=>v.includes(x)));
-    const f=match?match.f:['au meilleur prix','vendeurs vérifiés','autour de toi','récent'];
-    const n=match?match.n:(v.length%9)+5;
-    $('#aiText').innerHTML=`J'ai trouvé <b>${n} annonces</b> qui correspondent. J'ai écarté les vendeurs mal notés et trié par proximité.`;
-    $('#aiFilters').innerHTML=f.map(x=>`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> ${x}</span>`).join('')
-      +`<button class="alertbtn" onclick="toast('Alerte créée — on te prévient !','ti-bell')"><i class="ti ti-bell"></i> Créer une alerte</button>`;
+    const v=q.value.trim();
+    if(!v){ clearSearch(); toast('Recherche effacée','ti-search'); return; }
+    const low=v.toLowerCase();
+    const pm=low.match(/([\d][\d\s.]{1,})\s*(dh|dirham|mad|€|euro)/);
+    const maxPrice = pm ? +pm[1].replace(/[^\d]/g,'') : null;
+    const stop=new Set(['moins','de','avec','pour','une','des','les','dh','dirham','mad','euro','euros','prix','sous','que','sur','dans','mon','ton','est']);
+    const words=low.replace(/[<>]/g,' ').split(/\s+/).filter(w=>w.length>2 && !/^\d/.test(w) && !stop.has(w));
+    searchPred=(l)=>{
+      const hay=(l.t+' '+(l.desc||'')+' '+(l.cat||'')+' '+(l.q||'')+' '+(l.city||'')).toLowerCase();
+      const okText = words.length===0 || words.some(w=>hay.includes(w));
+      const price=+String(l._price!=null?l._price:l.p).replace(/[^\d]/g,'');
+      const okPrice = !maxPrice || (price && price<=maxPrice);
+      return okText && okPrice;
+    };
+    active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
+    render();
+    const n=filtered().length;
+    $('#aiText').innerHTML=`<b>${n} annonce${n>1?'s':''}</b> ${maxPrice?('à moins de '+maxPrice.toLocaleString('fr-FR')+' dh '):''}correspondent à ta recherche.`;
+    $('#aiFilters').innerHTML=(maxPrice?`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> &lt; ${maxPrice.toLocaleString('fr-FR')} dh</span>`:'')+words.slice(0,4).map(w=>`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> ${w}</span>`).join('')+`<button class="alertbtn" onclick="clearSearch()"><i class="ti ti-x"></i> Effacer</button>`;
     $('#aiPanel').classList.add('show');
     $('#listings').scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -1196,11 +1247,11 @@
     return { t:r.title, p:(r.price!=null?Number(r.price).toLocaleString('fr-FR'):'—'), u:r.unit||'dh',
       q:r.quartier||'Centre', city:r.city||'Casablanca', lat:(r.lat==null?cc[0]:r.lat), lng:(r.lng==null?cc[1]:r.lng),
       loc:(r.quartier||r.city||'')+' · '+timeAgo(r.created_at), cat:r.category||'',
-      imgs:[ r.image_url || fallbackImg(r.category) ],
+      imgs:(Array.isArray(r.images)&&r.images.length)?r.images:[ r.image_url || fallbackImg(r.category) ],
       badge: r.verified?{cls:'deliv',i:'ti-rosette-discount-check',txt:'Vérifié'}:{cls:'ai',i:'ti-clock',txt:'Nouveau'},
       sn:r.seller_name||'Vendeur', pro:!!r.pro, proIcon:r.pro?'ti-building-store':null, av:'#A16207',
       rt:'nouveau', reviews:0, vrf:!!r.verified, views:1, online:true, desc:r.description||'Pas de description.',
-      tags:['near','recent', r.pro?'pro':'part'], _uid:r.user_id, _id:r.id };
+      tags:['near','recent', r.pro?'pro':'part'], _uid:r.user_id, _id:r.id, cond:r.cond, _price:r.price };
   }
   const SEED=listings.slice();
   let dbListings=[];
@@ -1209,6 +1260,47 @@
     try{ const {data,error}=await sb.from('listings').select('*').order('created_at',{ascending:false}).limit(300);
       if(error){console.warn('load',error.message);return;} dbListings=(data||[]).map(dbToListing); rebuildListings();
     }catch(e){console.warn(e);}
+  }
+  async function loadFavs(){
+    favs.clear();
+    try{ JSON.parse(localStorage.getItem('zilo_favs')||'[]').forEach(k=>favs.add(k)); }catch(e){}
+    if(me){ try{ const {data}=await sb.from('favorites').select('listing_id').eq('user_id',me.id); (data||[]).forEach(r=>favs.add(r.listing_id)); }catch(e){} }
+    const c=$('#favCnt'); if(c){ c.textContent=favs.size; c.classList.toggle('show',favs.size>0); }
+  }
+  function openEdit(i){ const l=listings[i]; if(!me||!l._uid||l._uid!==me.id){toast('Action non autorisée','ti-lock');return;} renderPost(l); openModal('post'); }
+  async function deleteListing(i){
+    const l=listings[i]; if(!me||l._uid!==me.id)return;
+    if(!confirm('Supprimer définitivement cette annonce ?')) return;
+    const {error}=await sb.from('listings').delete().eq('id',l._id);
+    if(error){toast('Erreur : '+error.message,'ti-alert-triangle');return;}
+    await loadListings(); toast('Annonce supprimée','ti-trash');
+  }
+  // ---- Avis & notes vendeurs ----
+  let revTarget=null, revName='', revStars=0;
+  function stars(n){ const full=Math.round(n); let s=''; for(let k=1;k<=5;k++) s+=`<i class="ti ti-star${k<=full?' on':''}"></i>`; return s; }
+  async function openReviews(uid,name){
+    if(!uid){toast('Pas de vendeur réel à noter (annonce de démo)','ti-info-circle');return;}
+    revTarget=uid; revName=name||'Vendeur'; revStars=0;
+    let list=[]; try{ const {data}=await sb.from('reviews').select('*').eq('target_user_id',uid).order('created_at',{ascending:false}); list=data||[]; }catch(e){}
+    const avg=list.length?(list.reduce((s,r)=>s+r.rating,0)/list.length):0;
+    const canReview = me && me.id!==uid;
+    $('#revBody').innerHTML=`
+      <h2 class="serif">Avis sur ${escapeHtml(revName)}</h2>
+      <div class="rev-summary"><b>${avg?avg.toFixed(1):'—'}</b><span class="stars-show">${stars(avg)}</span><small>${list.length} avis</small></div>
+      ${canReview?`<div class="rev-form"><div class="stars-pick" id="starsPick">${[1,2,3,4,5].map(n=>`<i class="ti ti-star" data-n="${n}"></i>`).join('')}</div><textarea id="revComment" placeholder="Ton avis (optionnel)…"></textarea><button class="btn-primary" id="revSend"><i class="ti ti-send"></i> Publier mon avis</button></div>`:(me?'':'<p class="rev-hint">Connecte-toi pour laisser un avis.</p>')}
+      <div class="rev-list">${list.length?list.map(r=>`<div class="rev-item"><div class="rev-head"><b>${escapeHtml(r.author_name||'Utilisateur')}</b><span class="stars-show">${stars(r.rating)}</span></div>${r.comment?`<p>${escapeHtml(r.comment)}</p>`:''}</div>`).join(''):'<p class="rev-hint">Aucun avis pour l\'instant.</p>'}</div>`;
+    if(canReview){
+      $('#starsPick').querySelectorAll('i').forEach(st=>st.onclick=()=>{revStars=+st.dataset.n; $('#starsPick').querySelectorAll('i').forEach(x=>x.classList.toggle('on',+x.dataset.n<=revStars));});
+      $('#revSend').onclick=submitReview;
+    }
+    openModal('rev');
+  }
+  async function submitReview(){
+    if(!me||!revTarget)return;
+    if(!revStars){toast('Choisis une note (étoiles)','ti-star');return;}
+    const {error}=await sb.from('reviews').upsert({target_user_id:revTarget, author_id:me.id, author_name:me.name, rating:revStars, comment:$('#revComment').value.trim()},{onConflict:'target_user_id,author_id'});
+    if(error){toast('Erreur : '+error.message,'ti-alert-triangle');return;}
+    toast('Merci pour ton avis ✓','ti-star'); openReviews(revTarget,revName);
   }
 
   function openAuth(mode){ renderAuth(mode||'login'); openModal('auth'); }
@@ -1273,33 +1365,40 @@
       <a id="amOut"><i class="ti ti-logout"></i> Se déconnecter</a>`;
     document.querySelector('.acc-wrap').appendChild(m);
     m.querySelector('#amPost').onclick=()=>{m.remove();openPost();};
-    m.querySelector('#amMine').onclick=()=>{m.remove();const n=listings.filter(l=>l.sn===u.name).length;toast('Tu as '+n+' annonce'+(n>1?'s':'')+' en ligne','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
+    m.querySelector('#amMine').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid===me.id);render();const n=filtered().length;toast(n+' annonce'+(n>1?'s':'')+' à toi','ti-list-details');$('#listings').scrollIntoView({behavior:'smooth'});};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
   }
   document.addEventListener('click',e=>{const m=document.querySelector('.acc-menu');if(m&&!m.contains(e.target)&&!$('#accBtn').contains(e.target))m.remove();});
 
   function openPost(){ if(!me){toast('Crée un compte pour déposer une annonce','ti-lock');openAuth('signup');return;} renderPost(); openModal('post'); }
   let poImgData=null;
-  function renderPost(){
-    poImgData=null;
+  function renderPost(pl){
+    editingId = pl ? pl._id : null;
     const cats=['Immobilier › Vente','Immobilier › Location','Auto & Moto › Voitures','Auto & Moto › Motos','Multimédia › Téléphones','Multimédia › Ordinateurs','Maison & Déco › Salon','Mode › Homme','Mode › Femme','Emploi'];
     $('#postBody').innerHTML=`
-      <h2 class="serif">Déposer une annonce</h2><p class="sub"><i class="ti ti-sparkles" style="color:var(--accent)"></i> Quelques infos et c'est en ligne.</p>
+      <h2 class="serif">${pl?'Modifier l\'annonce':'Déposer une annonce'}</h2><p class="sub"><i class="ti ti-sparkles" style="color:var(--accent)"></i> ${pl?'Mets à jour les infos.':'Quelques infos et c\'est en ligne.'}</p>
       <div class="field2"><label>Titre *</label><input id="poTitle" placeholder="Ex : iPhone 13 Pro 256 Go, très bon état"></div>
       <div class="field2"><label>Catégorie</label><select id="poCat">${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
       <div class="row2f"><div class="field2"><label>Ville</label><select id="poCity">${Object.keys(GEO).map(c=>`<option>${c}</option>`).join('')}</select></div><div class="field2"><label>Quartier</label><select id="poQ"></select></div></div>
       <div class="row2f"><div class="field2"><label>Prix *</label><input id="poPrice" type="number" min="0" placeholder="0"></div><div class="field2"><label>Unité</label><select id="poUnit"><option>dh</option><option>dh/mois</option></select></div></div>
       <div class="field2"><label>État</label><select id="poState"><option>Neuf</option><option selected>Très bon état</option><option>Bon état</option><option>Correct</option></select></div>
-      <div class="field2"><label>Photo</label><input id="poImg" type="file" accept="image/*"></div>
+      <div class="field2"><label>Photos ${pl?'(laisse vide pour garder les actuelles)':'(plusieurs possibles)'}</label><input id="poImg" type="file" accept="image/*" multiple></div>
       <button type="button" class="btn-ghost" id="aiFill" style="width:100%;justify-content:center;margin-bottom:12px"><i class="ti ti-sparkles"></i> Remplir avec l'IA depuis la photo</button>
       <div class="field2"><label>Description</label><textarea id="poDesc" placeholder="Décris ton article, son état, les détails utiles…"></textarea></div>
-      <button class="btn-primary" id="poBtn"><i class="ti ti-rocket"></i> Publier mon annonce</button>`;
+      <button class="btn-primary" id="poBtn"><i class="ti ti-rocket"></i> ${pl?'Enregistrer les modifications':'Publier mon annonce'}</button>`;
     const fillQ=()=>{const c=$('#poCity').value,qs=GEO[c]||[];$('#poQ').innerHTML='<option value="">Centre</option>'+qs.map(q=>`<option>${q}</option>`).join('');};
-    $('#poCity').value=(geoCity in GEO)?geoCity:'Casablanca'; fillQ();
+    $('#poCity').value=(pl&&pl.city in GEO)?pl.city:((geoCity in GEO)?geoCity:'Casablanca'); fillQ();
     $('#poCity').onchange=fillQ;
-    $('#poImg').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>poImgData=r.result;r.readAsDataURL(f);};
     $('#poBtn').onclick=submitPost;
     $('#aiFill').onclick=aiFillFromPhoto;
+    if(pl){
+      $('#poTitle').value=pl.t||''; $('#poDesc').value=pl.desc||'';
+      const co=[...$('#poCat').options].find(o=>o.value===pl.cat); if(co)$('#poCat').value=pl.cat;
+      $('#poPrice').value=(pl._price!=null?pl._price:String(pl.p).replace(/[^\d]/g,''));
+      if([...$('#poUnit').options].some(o=>o.value===pl.u))$('#poUnit').value=pl.u;
+      if(pl.cond&&[...$('#poState').options].some(o=>o.value===pl.cond))$('#poState').value=pl.cond;
+      if(pl.q&&[...$('#poQ').options].some(o=>o.value===pl.q))$('#poQ').value=pl.q;
+    }
   }
   async function aiFillFromPhoto(){
     const f=$('#poImg').files[0];
@@ -1329,14 +1428,27 @@
     if(!price){toast('Le prix est obligatoire','ti-alert-triangle');return;}
     const city=$('#poCity').value, qv=$('#poQ').value, cc=CITYC[city]||[33.5731,-7.5898];
     const jit=(title.length*13%80)/1000-0.04;
-    const btn=$('#poBtn'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2"></i> Publication…';
-    let image_url=null;
-    const f=$('#poImg').files[0];
-    if(f){ try{ const path=me.id+'/'+Date.now()+'_'+f.name.replace(/[^\w.\-]+/g,'_'); const up=await sb.storage.from('photos').upload(path,f); if(!up.error){ image_url=sb.storage.from('photos').getPublicUrl(path).data.publicUrl; } }catch(e){} }
-    const row={ user_id:me.id, seller_name:me.name, pro:me.type==='pro', verified:me.verified, title, category:$('#poCat').value, city, quartier:qv||'Centre', price:Number(price)||0, unit:$('#poUnit').value, cond:$('#poState').value, description:desc, image_url, lat:cc[0]+jit, lng:cc[1]-jit };
-    const {error}=await sb.from('listings').insert(row);
-    if(error){ toast('Erreur publication : '+error.message,'ti-alert-triangle'); btn.disabled=false; btn.innerHTML=old; return; }
-    geoCity=city; geoQ=null; updateGeoLabel(); buildGeo();
+    const btn=$('#poBtn'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2"></i> Enregistrement…';
+    const files=[...$('#poImg').files]; const images=[];
+    for(const f of files){
+      try{ const path=me.id+'/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+f.name.replace(/[^\w.\-]+/g,'_');
+        const up=await sb.storage.from('photos').upload(path,f);
+        if(!up.error){ images.push(sb.storage.from('photos').getPublicUrl(path).data.publicUrl); }
+      }catch(e){}
+    }
+    const base={ seller_name:me.name, pro:me.type==='pro', verified:me.verified, title, category:$('#poCat').value, city, quartier:qv||'Centre', price:Number(price)||0, unit:$('#poUnit').value, cond:$('#poState').value, description:desc };
+    if(editingId){
+      if(images.length) base.image_url=images[0];
+      const {error}=await sb.from('listings').update(base).eq('id',editingId);
+      if(error){ toast('Erreur : '+error.message,'ti-alert-triangle'); btn.disabled=false; btn.innerHTML=old; return; }
+      if(images.length){ try{ await sb.from('listings').update({images}).eq('id',editingId); }catch(e){} }
+      editingId=null; closeModal(); await loadListings(); toast('Annonce mise à jour ✓','ti-check'); return;
+    }
+    base.user_id=me.id; base.image_url=images[0]||null; base.lat=cc[0]+jit; base.lng=cc[1]-jit;
+    const ins=await sb.from('listings').insert(base).select().single();
+    if(ins.error){ toast('Erreur publication : '+ins.error.message,'ti-alert-triangle'); btn.disabled=false; btn.innerHTML=old; return; }
+    if(images.length>1 && ins.data){ try{ await sb.from('listings').update({images}).eq('id',ins.data.id); }catch(e){} }
+    geoCity=city; geoQ=null; searchPred=null; updateGeoLabel(); buildGeo();
     closeModal(); await loadListings(); $('#listings').scrollIntoView({behavior:'smooth',block:'start'});
     toast('Annonce publiée 🎉','ti-rocket');
   }
@@ -1361,8 +1473,9 @@
   let convs=[], openConv=null, chatCh=null, unread=0;
   function updateMsgBadge(){ const b=$('#msgCnt'); if(!b)return; b.textContent=unread; b.classList.toggle('show',unread>0); }
   function afterAuth(){
-    if(me){ loadConvs(); refreshUnread(); subscribeChat(); }
-    else { convs=[]; unread=0; updateMsgBadge(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} }
+    loadFavs();
+    if(me){ loadConvs(); refreshUnread(); subscribeChat(); loadListings(); }
+    else { convs=[]; unread=0; updateMsgBadge(); if(chatCh){sb.removeChannel(chatCh);chatCh=null;} render(); }
   }
   async function refreshUnread(){
     if(!me){unread=0;updateMsgBadge();return;}
