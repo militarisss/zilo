@@ -1666,6 +1666,18 @@
   }
   { const info=document.getElementById('dinfo'); attachSwipe(info, ()=>detailNav(1), ()=>detailNav(-1)); }
   { const gm=document.querySelector('#detail .gmain'); attachSwipe(gm, ()=>setG(gIdx+1), ()=>setG(gIdx-1)); }
+  // Tirer vers le bas (en haut de la fiche) — ou sur-glisser vers le haut tout en bas — ferme l'annonce
+  (function(){
+    const sheet=document.querySelector('#detail .sheet'); if(!sheet||sheet._pull) return; sheet._pull=true;
+    let y0=null,x0=null,drag=false,top0=0,bottom0=false;
+    sheet.addEventListener('touchstart',e=>{ if(e.touches.length!==1){y0=null;return;} const t=e.touches[0]; y0=t.clientY; x0=t.clientX; top0=sheet.scrollTop; bottom0=(sheet.scrollTop+sheet.clientHeight>=sheet.scrollHeight-2); drag=false; },{passive:true});
+    sheet.addEventListener('touchmove',e=>{ if(y0==null)return; const t=e.touches[0]; const dy=t.clientY-y0, dx=t.clientX-x0;
+      if(!drag){ if(dy>8 && dy>Math.abs(dx) && top0<=0){ drag=true; sheet.style.transition='none'; } else if(Math.abs(dx)>10 || dy<0){ if(!bottom0) y0=null; return; } }
+      if(drag){ const d=Math.max(0,dy); sheet.style.transform=`translate(-50%,calc(-50% + ${d}px))`; sheet.style.opacity=String(Math.max(.25,1-d/500)); } },{passive:true});
+    sheet.addEventListener('touchend',e=>{ if(y0==null)return; const t=e.changedTouches[0]; const dy=t.clientY-y0, dx=t.clientX-x0; const wasDrag=drag; y0=null; drag=false;
+      if(wasDrag){ sheet.style.transition=''; sheet.style.transform=''; sheet.style.opacity=''; if(dy>110) closeModal(); return; }
+      if(bottom0 && dy<-100 && Math.abs(dy)>Math.abs(dx)) closeModal(); },{passive:true});
+  })();
   async function saveSearch(){
     if(!me){toast('Connecte-toi pour créer une alerte','ti-lock');openAuth('login');return;}
     const query=q.value.trim(); if(!query){toast('Tape d\'abord une recherche','ti-search');return;}
