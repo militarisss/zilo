@@ -422,6 +422,19 @@
   .dash-card b{display:block;font-size:24px;font-weight:700;letter-spacing:-.5px;margin:6px 0 2px}
   .dash-card span{font-size:11px;color:var(--fg-faint)}
   @media(max-width:680px){.dash-grid{grid-template-columns:1fr 1fr}}
+  .dash-sec-h{font-size:14px;font-weight:700;margin:18px 0 10px;display:flex;align-items:center;gap:7px} .dash-sec-h i{color:var(--accent)}
+  .dash-chart{display:flex;flex-direction:column;gap:9px;margin-bottom:6px}
+  .dch-row{display:grid;grid-template-columns:96px 1fr 34px;align-items:center;gap:9px;font-size:12px}
+  .dch-lab{color:var(--fg-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dch-bar{height:9px;background:var(--muted);border-radius:5px;overflow:hidden}
+  .dch-bar>div{height:100%;background:linear-gradient(90deg,var(--accent),#D85A30);border-radius:5px;min-width:3px;transition:width .5s var(--ease)}
+  .dch-val{text-align:right;font-weight:700;color:var(--fg)}
+  .dash-list{display:flex;flex-direction:column;gap:8px}
+  .dl-row{display:flex;align-items:center;gap:11px;padding:8px;border:1px solid var(--border);border-radius:12px}
+  .dl-thumb{width:48px;height:48px;border-radius:9px;object-fit:cover;flex-shrink:0}
+  .dl-main{flex:1;min-width:0} .dl-main b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .dl-main span{font-size:12px;color:var(--fg-soft)}
+  .dl-acts{display:flex;gap:5px;flex-shrink:0}
+  .dl-acts button{width:32px;height:32px;border-radius:8px;background:var(--muted);display:grid;place-items:center;font-size:15px;color:var(--fg-soft);transition:.15s var(--ease)} .dl-acts button:hover{color:var(--accent);background:var(--accent-tint)} .dl-acts button:last-child:hover{color:#DC2626}
 
   /* historique + alertes */
   .histrail{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px}
@@ -1982,25 +1995,34 @@
   }
   async function openDashboard(){
     if(!me){openAuth('login');return;}
-    let nListings=0,totalViews=0,favRecv=0,followers=0,nReviews=0,avgR=0,nConv=0,ids=[];
-    try{ const mine=await sb.from('listings').select('id,views').eq('user_id',me.id); ids=(mine.data||[]).map(r=>r.id); nListings=ids.length; totalViews=(mine.data||[]).reduce((s,r)=>s+(r.views||0),0); }catch(e){}
-    try{ if(ids.length){ const f=await sb.from('favorites').select('listing_id',{count:'exact',head:true}).in('listing_id',ids); favRecv=f.count||0; } }catch(e){}
+    openModal('dash');
+    $('#dashBody').innerHTML='<h2 class="serif">Tableau de bord</h2><p class="sub">Chargement de tes performances…</p>';
+    let mine=[], favBy={}, favRecv=0, followers=0, nReviews=0, avgR=0, nConv=0;
+    try{ const r=await sb.from('listings').select('id,title,image_url,images,views,category').eq('user_id',me.id).order('views',{ascending:false}); mine=r.data||[]; }catch(e){}
+    const ids=mine.map(r=>r.id);
+    try{ if(ids.length){ const f=await sb.from('favorites').select('listing_id').in('listing_id',ids); (f.data||[]).forEach(x=>{ favBy[x.listing_id]=(favBy[x.listing_id]||0)+1; favRecv++; }); } }catch(e){}
     try{ const fo=await sb.from('follows').select('*',{count:'exact',head:true}).eq('seller_id',me.id); followers=fo.count||0; }catch(e){}
     try{ const rv=await sb.from('reviews').select('rating').eq('target_user_id',me.id); const li=rv.data||[]; nReviews=li.length; avgR=li.length?(li.reduce((s,r)=>s+r.rating,0)/li.length):0; }catch(e){}
     try{ const cv=await sb.from('conversations').select('*',{count:'exact',head:true}).or('buyer_id.eq.'+me.id+',seller_id.eq.'+me.id); nConv=cv.count||0; }catch(e){}
+    const totalViews=mine.reduce((s,r)=>s+(r.views||0),0);
     const card=(ic,val,lab)=>`<div class="dash-card"><i class="ti ${ic}"></i><b>${val}</b><span>${lab}</span></div>`;
-    $('#dashBody').innerHTML=`<h2 class="serif">Tableau de bord</h2><p class="sub">Bonjour ${escapeHtml(me.name.split(' ')[0])} · voici tes statistiques.</p>
+    const top=mine.slice(0,6); const maxV=Math.max(1,...top.map(r=>r.views||0));
+    const chart = top.length? `<div class="dash-sec-h"><i class="ti ti-chart-bar"></i> Vues par annonce</div><div class="dash-chart">${top.map(r=>`<div class="dch-row"><span class="dch-lab">${escapeHtml((r.title||'—').slice(0,24))}</span><div class="dch-bar"><div style="width:${Math.round((r.views||0)/maxV*100)}%"></div></div><span class="dch-val tnum">${r.views||0}</span></div>`).join('')}</div>` : '';
+    const list = mine.length? `<div class="dash-sec-h"><i class="ti ti-list-details"></i> Gérer mes annonces</div><div class="dash-list">${mine.map(r=>{ const img=(Array.isArray(r.images)&&r.images[0])||r.image_url||fallbackImg(r.category); const idx=listings.findIndex(l=>l._id===r.id); return `<div class="dl-row"><img class="dl-thumb" src="${IMG(img,120)}" alt=""><div class="dl-main"><b>${escapeHtml(r.title||'—')}</b><span><i class="ti ti-eye"></i> ${r.views||0} &nbsp;·&nbsp; <i class="ti ti-heart"></i> ${favBy[r.id]||0}</span></div><div class="dl-acts">${idx>=0?`<button title="Voir" onclick="closeModal();openDetail(${idx})"><i class="ti ti-eye"></i></button><button title="Modifier" onclick="openEdit(${idx})"><i class="ti ti-pencil"></i></button><button title="Supprimer" onclick="dashDelete(${idx})"><i class="ti ti-trash"></i></button>`:''}</div></div>`; }).join('')}</div>` : '<div class="empty" style="margin-top:10px"><i class="ti ti-news-off"></i><b>Aucune annonce</b>Dépose ta première annonce pour voir tes stats.</div>';
+    $('#dashBody').innerHTML=`<h2 class="serif">Tableau de bord</h2><p class="sub">Bonjour ${escapeHtml(me.name.split(' ')[0])} · voici tes performances.</p>
       <div class="dash-grid">
-        ${card('ti-news',nListings,'annonces')}
+        ${card('ti-news',mine.length,'annonces')}
         ${card('ti-eye',totalViews,'vues totales')}
         ${card('ti-heart',favRecv,'favoris reçus')}
         ${card('ti-users',followers,'abonnés')}
         ${card('ti-star',(avgR?avgR.toFixed(1):'—'),'note ('+nReviews+' avis)')}
         ${card('ti-message-circle',nConv,'conversations')}
       </div>
-      <button class="btn-primary" style="width:100%;justify-content:center" onclick="closeModal();openPost()"><i class="ti ti-plus"></i> Déposer une annonce</button>`;
-    openModal('dash');
+      ${chart}
+      ${list}
+      <button class="btn-primary" style="width:100%;justify-content:center;margin-top:16px" onclick="closeModal();openPost()"><i class="ti ti-plus"></i> Déposer une annonce</button>`;
   }
+  async function dashDelete(i){ await deleteListing(i); if(openId==='dash') openDashboard(); }
   let reelsMuted=true, reelsIO=null;
   function openReels(){
     const vids=listings.map((l,i)=>({l,i})).filter(({l})=>l.video);
