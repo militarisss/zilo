@@ -1390,17 +1390,41 @@
 
   // STORIES
   const cats=[
-    ['ti-building-community','Immobilier','#2563EB','#60A5FA'],
-    ['ti-car','Auto','#DC2626','#FB7185'],
-    ['ti-device-mobile','Multimédia','#7C3AED','#A78BFA'],
-    ['ti-sofa','Maison','#059669','#34D399'],
-    ['ti-shirt','Mode','#DB2777','#F472B6'],
-    ['ti-briefcase','Emploi','#0891B2','#22D3EE'],
-    ['ti-baby-carriage','Enfance','#EA580C','#FBBF24'],
+    ['ti-building-community','Immobilier','#2563EB','#60A5FA','Immobilier'],
+    ['ti-car','Auto','#DC2626','#FB7185','Auto & Moto'],
+    ['ti-device-mobile','Multimédia','#7C3AED','#A78BFA','Multimédia'],
+    ['ti-sofa','Maison','#059669','#34D399','Maison & Déco'],
+    ['ti-shirt','Mode','#DB2777','#F472B6','Mode'],
+    ['ti-briefcase','Emploi','#0891B2','#22D3EE','Emploi'],
+    ['ti-baby-carriage','Enfance','#EA580C','#FBBF24','Enfance'],
   ];
   $('#stories').innerHTML = `<button class="story add" style="--c1:#A16207;--c2:#F59E0B"><span class="ring"><i class="ti ti-plus"></i></span>Vendre</button>` +
-    cats.map(c=>`<button class="story" style="--c1:${c[2]};--c2:${c[3]}"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
-  document.querySelectorAll('#stories .story').forEach(s=>s.addEventListener('click',()=>toast('Catégorie : '+s.textContent.trim(),'ti-photo')));
+    cats.map(c=>`<button class="story" data-cat="${c[4]}" style="--c1:${c[2]};--c2:${c[3]}"><span class="ring"><i class="ti ${c[0]}"></i></span>${c[1]}</button>`).join('');
+  document.querySelectorAll('#stories .story').forEach(s=>s.addEventListener('click',()=>{
+    if(s.classList.contains('add')){ openPost(); return; }
+    filterByCat(s.dataset.cat, s.textContent.trim());
+  }));
+  // ===== Filtrer par catégorie (stories + menu header) =====
+  function filterByCat(prefix, label){
+    if(!prefix) return;
+    active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
+    adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix);
+    if(view==='map'){ view='grid'; }
+    render();
+    const n=filtered().length;
+    toast((n? n+' annonce'+(n>1?'s':'') : 'Aucune annonce')+' · '+(label||prefix), n?'ti-category':'ti-mood-empty');
+    const sec=document.getElementById('listings'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  const TOPMAP={'Immobilier':'Immobilier','Véhicules':'Auto & Moto','Multimédia':'Multimédia','Maison & Déco':'Maison & Déco','Emploi':'Emploi'};
+  { const nav=document.querySelector('.hdr-cats'); if(nav) nav.addEventListener('click',e=>{
+      const a=e.target.closest('.submenu a'); const btn=e.target.closest('.navitem > button');
+      if(a){ e.preventDefault();
+        const ni=a.closest('.navitem'); const topLabel=ni.querySelector('button').textContent.trim();
+        const top=TOPMAP[topLabel]||topLabel; const sub=a.textContent.trim(); const full=top+' › '+sub;
+        const usefull=listings.some(l=>(l.cat||'').startsWith(full));
+        filterByCat(usefull?full:top, usefull?sub:topLabel);
+      } else if(btn){ const topLabel=btn.textContent.trim(); filterByCat(TOPMAP[topLabel]||topLabel, topLabel); }
+    }); }
 
   async function toggleFav(btn){
     const fk=btn.dataset.fk; const i=+btn.dataset.i; const l=listings[i];
