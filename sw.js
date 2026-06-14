@@ -1,5 +1,5 @@
 // Service worker Zilo — réseau d'abord, cache en secours (offline)
-const CACHE = 'zilo-v3';
+const CACHE = 'zilo-v4';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -29,5 +29,29 @@ self.addEventListener('fetch', (e) => {
         return res;
       })
       .catch(() => caches.match(req).then((r) => r || caches.match('./index.html')))
+  );
+});
+
+// ===== Notifications push =====
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
+  const title = d.title || 'Zilo';
+  const opts = {
+    body: d.body || d.text || 'Nouvelle notification',
+    icon: './icon.svg', badge: './icon.svg',
+    data: { url: d.url || './' }, tag: d.tag || 'zilo-notif', renotify: true
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ws) => {
+      for (const w of ws) { if ('focus' in w) { try { w.navigate && w.navigate(url); } catch (_) {} return w.focus(); } }
+      return self.clients.openWindow(url);
+    })
   );
 });

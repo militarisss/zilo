@@ -541,6 +541,8 @@
   .nm-item.unread{background:var(--accent-tint)} .nm-item.unread i{color:var(--accent)}
   .nm-item p{font-size:13px;color:var(--fg);line-height:1.4} .nm-item small{font-size:11px;color:var(--fg-faint)}
   .nm-empty{padding:24px;text-align:center;color:var(--fg-faint);font-size:13px}
+  .nm-push{display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:13px;font-weight:600;color:var(--accent);background:var(--accent-tint);cursor:pointer;border-bottom:1px solid var(--border)} .nm-push:hover{filter:brightness(.97)} .nm-push i{font-size:17px}
+  .nm-push.granted{color:var(--green,#059669);background:transparent;cursor:default}
   .legal-text{font-size:14px;color:var(--fg-soft);line-height:1.7} .legal-text p{margin-bottom:12px} .legal-text b{color:var(--fg)}
   [dir="rtl"] .tnum,[dir="rtl"] .price,[dir="rtl"] .dprice,[dir="rtl"] .rprice,[dir="rtl"] .hp,[dir="rtl"] #q,[dir="rtl"] input[type="email"]{direction:ltr}
   [dir="rtl"] .hero-sub,[dir="rtl"] .sec-head p,[dir="rtl"] h1{text-align:right}
@@ -2050,6 +2052,27 @@
   // ---- Notifications (cloche) ----
   let notifs=[], notifUnread=0, notifCh=null;
   function updateNotifBadge(){ const b=$('#notifCnt'); if(!b)return; b.textContent=notifUnread; b.classList.toggle('show',notifUnread>0); }
+  // ===== Notifications push =====
+  const VAPID_PUBLIC='BKkuFmP2fOXGb7ly1O0VVnks3WhVuyzSrdhJJ7MbTBx0jYmhR7O9XZbBFmzsUEW7gxjTIWntDiVnZXf-aW1iwPI';
+  function urlB64ToUint8(b){ const pad='='.repeat((4-b.length%4)%4); const s=(b+pad).replace(/-/g,'+').replace(/_/g,'/'); const raw=atob(s); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i); return arr; }
+  function showSystemNotif(n){
+    try{ if(('Notification' in window) && Notification.permission==='granted' && document.visibilityState!=='visible'){
+      navigator.serviceWorker.ready.then(reg=>reg.showNotification('Zilo',{body:n.text||'Nouvelle notification',icon:'./icon.svg',badge:'./icon.svg',data:{url:n.link||'./'},tag:'zilo-'+(n.id||Date.now())})).catch(()=>{});
+    } }catch(e){}
+  }
+  async function enablePush(){
+    if(!('Notification' in window)||!('serviceWorker' in navigator)){ toast('Notifications non supportées ici','ti-alert-triangle'); return; }
+    let perm=Notification.permission;
+    if(perm!=='granted') perm=await Notification.requestPermission();
+    if(perm!=='granted'){ toast('Notifications refusées','ti-bell-off'); return; }
+    toast('Notifications activées ✓','ti-bell-ringing');
+    try{
+      const reg=await navigator.serviceWorker.ready;
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)});
+      if(me&&sub){ try{ await sb.from('push_subscriptions').upsert({user_id:me.id, endpoint:sub.endpoint, sub:sub.toJSON()},{onConflict:'endpoint'}); }catch(e){} }
+    }catch(e){ /* le push "app fermée" exige la fonction serveur déployée ; les notifs locales marchent déjà */ }
+  }
   async function loadNotifs(){
     if(!me){ notifs=[]; notifUnread=0; updateNotifBadge(); return; }
     try{ const {data}=await sb.from('notifications').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(30); notifs=data||[]; notifUnread=notifs.filter(n=>!n.read).length; }catch(e){ notifs=[]; notifUnread=0; }
@@ -2058,16 +2081,21 @@
   function subscribeNotifs(){
     if(notifCh) sb.removeChannel(notifCh);
     if(!me) return;
-    notifCh=sb.channel('rt-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+me.id},(p)=>{ notifs.unshift(p.new); notifUnread++; updateNotifBadge(); toast(p.new.text||'Nouvelle notification','ti-bell'); }).subscribe();
+    notifCh=sb.channel('rt-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+me.id},(p)=>{ notifs.unshift(p.new); notifUnread++; updateNotifBadge(); toast(p.new.text||'Nouvelle notification','ti-bell'); showSystemNotif(p.new); }).subscribe();
   }
   function toggleNotifMenu(){
     let m=document.querySelector('.notif-menu'); if(m){m.remove();return;}
     m=document.createElement('div'); m.className='notif-menu';
     const ic=t=>t==='message'?'ti-message-circle':t==='follow'?'ti-user-plus':t==='review'?'ti-star':'ti-bell';
+    const pState=('Notification' in window)?Notification.permission:'unsupported';
+    const pushRow = pState==='granted' ? `<div class="nm-push granted"><i class="ti ti-bell-ringing"></i> Notifications activées</div>`
+      : pState==='unsupported' ? '' : `<div class="nm-push" id="nmPush"><i class="ti ti-bell-plus"></i> Activer les notifications</div>`;
     m.innerHTML=`<div class="nm-head"><b>Notifications</b>${notifs.some(n=>!n.read)?'<a id="nmRead">Tout marquer lu</a>':''}</div>`+
+      pushRow+
       (notifs.length?notifs.slice(0,20).map(n=>`<div class="nm-item ${n.read?'':'unread'}"><i class="ti ${ic(n.type)}"></i><div><p>${escapeHtml(n.text||'')}</p><small>${timeAgo(n.created_at)}</small></div></div>`).join(''):'<div class="nm-empty">Aucune notification.</div>');
     document.querySelector('.notif-wrap').appendChild(m);
     const rd=m.querySelector('#nmRead'); if(rd) rd.onclick=markAllNotifs;
+    const pb=m.querySelector('#nmPush'); if(pb) pb.onclick=()=>{ enablePush(); m.remove(); };
   }
   async function markAllNotifs(){
     try{ await sb.from('notifications').update({read:true}).eq('user_id',me.id).eq('read',false); }catch(e){}
