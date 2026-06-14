@@ -588,6 +588,10 @@
   /* détails par catégorie (formulaire de dépôt) */
   .spec-h{font-size:13px;font-weight:700;color:var(--fg-soft);margin:6px 0 10px;display:flex;align-items:center;gap:6px} .spec-h i{color:var(--accent)}
   .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px}
+  /* filtres actifs (style leboncoin) */
+  .active-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 18px}
+  .afchip{font-size:12.5px;font-weight:600;background:var(--accent-tint);color:var(--accent);border:1px solid var(--accent);padding:6px 11px;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:.15s var(--ease)} .afchip i{font-size:13px} .afchip:hover{filter:brightness(.96)}
+  .afchip.clear{background:transparent;color:var(--fg-soft);border-color:var(--border)}
   /* espace admin */
   .adm-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
   .adm-info{display:flex;flex-direction:column;gap:3px;min-width:170px;flex:1}
@@ -889,6 +893,7 @@
         </div>
       </div>
     </div>
+    <div class="active-filters" id="activeFilters" hidden></div>
 
     <div class="grid" id="grid"></div>
 
@@ -1197,7 +1202,7 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null, adv=null;
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null, adv=null, curCat=null;
   let LANG=(function(){ try{return localStorage.getItem('zilo_lang')||'fr';}catch(e){return 'fr';} })();
   const AR={
     "Immobilier":"عقارات","Véhicules":"سيارات","Multimédia":"وسائط متعددة","Maison & Déco":"منزل وديكور","Emploi":"وظائف","Vendre avec l'IA":"البيع بالذكاء الاصطناعي",
@@ -1240,7 +1245,23 @@
     if(l==='ar') applyAr(document.body); else location.reload();
   }
   const filtered = () => listings.map((l,i)=>({l,i})).filter(({l}) => l.city===geoCity && (!geoQ || l.q===geoQ) && [...active].every(t => l.tags.includes(t)) && (!searchPred || searchPred(l)) && !(l._uid && blocked.has(l._uid)) && (!adv || matchAdv(l)));
-  function matchAdv(l){ if(!adv) return true; const p=+String(l._price!=null?l._price:l.p).replace(/[^\d]/g,'')||0; if(adv.min&&p<adv.min)return false; if(adv.max&&p>adv.max)return false; if(adv.cat&&!(l.cat||'').toLowerCase().startsWith(adv.cat.toLowerCase()))return false; if(adv.cond&&l.cond!==adv.cond)return false; return true; }
+  function matchAdv(l){
+    if(!adv) return true;
+    const p=+String(l._price!=null?l._price:l.p).replace(/[^\d]/g,'')||0;
+    if(adv.min&&p<adv.min)return false;
+    if(adv.max&&p>adv.max)return false;
+    if(adv.cat&&!(l.cat||'').toLowerCase().startsWith(adv.cat.toLowerCase()))return false;
+    if(adv.cond&&l.cond!==adv.cond)return false;
+    if(adv.specs){ const s=l.specs||{};
+      for(const k in adv.specs){ const f=adv.specs[k]; if(f==null||f==='') continue;
+        if(typeof f==='object'){ const val=parseFloat(String(s[k]||'').replace(/[^\d.]/g,''));
+          if(f.min!=null&&f.min!==''&&!(val>=+f.min)) return false;
+          if(f.max!=null&&f.max!==''&&!(val<=+f.max)) return false;
+        } else { if(!String(s[k]||'').toLowerCase().includes(String(f).toLowerCase())) return false; }
+      }
+    }
+    return true;
+  }
 
   function favKey(l){ return l._id || ('demo:'+l.t); }
   function cardHTML(l,i,delay){
@@ -1316,9 +1337,9 @@
   ];
   let catActive=false;
   function applyCat(prefix,label){
-    if(!prefix) return; catActive=true;
+    if(!prefix) return; catActive=true; curCat=prefix;
     active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
-    adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix);
+    adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix); renderActiveFilters();
     if(view==='map') view='grid';
     render();
     const n=filtered().length; const lab=label||prefix.split(' › ').pop();
@@ -1331,7 +1352,7 @@
     if(ma){ const id=decodeURIComponent(ma[1]); const idx=listings.findIndex(l=> (l._id&&l._id===id) || ('demo:'+l.t===id)); if(idx>=0) openDetail(idx); return; }
     const mc=h.match(/^#cat=(.+)/);
     if(mc){ const e=CATSLUGS.find(c=>c.slug===mc[1]); const prefix=e?e.prefix:decodeURIComponent(mc[1]); applyCat(prefix, e&&e.label); return; }
-    if(h===''||h==='#'){ if(catActive){ catActive=false; searchPred=null; render(); } }
+    if(h===''||h==='#'){ if(catActive||adv){ catActive=false; curCat=null; searchPred=null; adv=null; render(); renderActiveFilters(); } }
   }
   addEventListener('hashchange',openFromHash);
   async function reportListing(i){
@@ -1384,6 +1405,7 @@
     lastItems = items;
     updateHomeMap();
     renderReco();
+    renderActiveFilters();
     $('#listingsSub').textContent = `${items.length} annonce${items.length>1?'s':''} · trié par l'IA selon ta zone`;
     if(view==='map'){ renderMap(items); return; }
     if(!items.length){ grid.innerHTML = `<div class="empty"><i class="ti ti-mood-empty"></i><b>Aucune annonce avec ces filtres</b>Essaie d'en désactiver un.</div>`; return; }
@@ -1672,7 +1694,7 @@
       const okPrice = !maxPrice || (price && price<=maxPrice);
       return okText && okPrice;
     };
-    active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
+    curCat=null; active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
     render();
     const n=filtered().length;
     $('#aiText').innerHTML=`<b>${n} annonce${n>1?'s':''}</b> ${maxPrice?('à moins de '+maxPrice.toLocaleString('fr-FR')+' dh '):''}correspondent à ta recherche.`;
@@ -1831,22 +1853,78 @@
   }
   function runAlert(query){ closeModal(); q.value=decodeURIComponent(query); runSearch(); }
   async function delAlert(id){ try{ await sb.from('saved_searches').delete().eq('id',id); }catch(e){} openAlerts(); }
+  const FCATS=[['','Toutes catégories'],['Immobilier','Immobilier'],['Auto & Moto › Voitures','Voitures'],['Auto & Moto › Motos','Motos'],['Multimédia › Téléphones','Téléphones'],['Multimédia › Ordinateurs','Ordinateurs'],['Maison & Déco','Maison & Déco'],['Mode','Mode'],['Emploi','Emploi']];
+  function renderFSpecs(cat){
+    const el=$('#fSpecs'); if(!el) return; const fs=specFields(cat); const cur=(adv&&adv.specs)||{};
+    if(!fs.length){ el.innerHTML=''; return; }
+    el.innerHTML=`<div class="spec-h"><i class="ti ti-filter"></i> Critères ${cat.split(' › ').pop()}</div>`+fs.map(f=>{
+      if(f.type==='number'){ const c=cur[f.k]||{};
+        return `<div class="row2f"><div class="field2"><label>${f.label} min${f.suffix?' ('+f.suffix+')':''}</label><input data-fs="${f.k}" data-kind="min" type="number" value="${c.min||''}"></div><div class="field2"><label>${f.label} max${f.suffix?' ('+f.suffix+')':''}</label><input data-fs="${f.k}" data-kind="max" type="number" value="${c.max||''}"></div></div>`; }
+      if(f.type==='select'){ const v=cur[f.k]||'';
+        return `<div class="field2"><label>${f.label}</label><select data-fs="${f.k}" data-kind="eq"><option value="">Tous</option>${f.options.map(o=>`<option ${v===o?'selected':''}>${o}</option>`).join('')}</select></div>`; }
+      const v=cur[f.k]||''; return `<div class="field2"><label>${f.label}</label><input data-fs="${f.k}" data-kind="eq" type="text" value="${escapeHtml(v)}"></div>`;
+    }).join('');
+  }
+  function readFilterForm(){
+    const min=+$('#fMin').value||0, max=+$('#fMax').value||0, cat=$('#fCat').value, cond=$('#fCond').value;
+    const specs={};
+    document.querySelectorAll('#fSpecs [data-fs]').forEach(el=>{ const k=el.getAttribute('data-fs'), kind=el.getAttribute('data-kind'), v=(el.value||'').trim(); if(v==='')return;
+      if(kind==='min'){ (specs[k]=specs[k]||{}).min=v; } else if(kind==='max'){ (specs[k]=specs[k]||{}).max=v; } else { specs[k]=v; } });
+    const hasS=Object.keys(specs).length>0;
+    return (min||max||cat||cond||hasS) ? {min,max,cat,cond,specs:hasS?specs:undefined} : null;
+  }
+  function previewCount(){ const save=adv; adv=readFilterForm(); const n=filtered().length; adv=save; const b=$('#fApply'); if(b) b.innerHTML=`<i class="ti ti-check"></i> Voir ${n} annonce${n>1?'s':''}`; }
   function openFilters(){
-    const cats=['','Immobilier','Auto & Moto','Multimédia','Maison & Déco','Mode','Emploi'];
-    $('#filtersBody').innerHTML=`<h2 class="serif">Filtres avancés</h2><p class="sub">Affine ta recherche.</p>
+    const cats=FCATS.slice(); let sel=(adv&&adv.cat)||curCat||'';
+    if(sel && !cats.some(c=>c[0]===sel)) cats.splice(1,0,[sel, sel.split(' › ').pop()]);
+    $('#filtersBody').innerHTML=`<h2 class="serif">Filtres</h2><p class="sub">Affine ta recherche.</p>
+      <div class="field2"><label>Catégorie</label><select id="fCat">${cats.map(([v,l])=>`<option value="${escapeHtml(v)}" ${sel===v?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="row2f"><div class="field2"><label>Prix min (dh)</label><input id="fMin" type="number" min="0" value="${(adv&&adv.min)||''}"></div><div class="field2"><label>Prix max (dh)</label><input id="fMax" type="number" min="0" value="${(adv&&adv.max)||''}"></div></div>
-      <div class="field2"><label>Catégorie</label><select id="fCat">${cats.map(c=>`<option value="${c}" ${adv&&adv.cat===c?'selected':''}>${c||'Toutes'}</option>`).join('')}</select></div>
       <div class="field2"><label>État</label><select id="fCond"><option value="">Tous</option>${['Neuf','Très bon état','Bon état','Correct'].map(c=>`<option ${adv&&adv.cond===c?'selected':''}>${c}</option>`).join('')}</select></div>
-      <button class="btn-primary" style="width:100%;justify-content:center" onclick="applyFilters()"><i class="ti ti-check"></i> Appliquer</button>
+      <div id="fSpecs"></div>
+      <button class="btn-primary" id="fApply" style="width:100%;justify-content:center" onclick="applyFilters()"><i class="ti ti-check"></i> Voir les annonces</button>
       <p class="alt" style="margin-top:14px"><a onclick="clearFilters()" style="cursor:pointer">Réinitialiser les filtres</a></p>`;
-    openModal('filters');
+    renderFSpecs(sel);
+    $('#fCat').onchange=()=>{ renderFSpecs($('#fCat').value); previewCount(); };
+    $('#filtersBody').oninput=previewCount;
+    previewCount(); openModal('filters');
   }
   function applyFilters(){
-    const min=+$('#fMin').value||0, max=+$('#fMax').value||0, cat=$('#fCat').value, cond=$('#fCond').value;
-    adv = (min||max||cat||cond) ? {min,max,cat,cond} : null;
-    closeModal(); render(); toast(adv?(filtered().length+' annonces filtrées'):'Filtres retirés','ti-adjustments-horizontal');
+    adv=readFilterForm();
+    if(adv&&adv.cat){ searchPred=null; curCat=adv.cat; }
+    closeModal(); render(); renderActiveFilters();
+    toast(adv?(filtered().length+' annonce'+(filtered().length>1?'s':'')+' filtrée'+(filtered().length>1?'s':'')):'Filtres retirés','ti-adjustments-horizontal');
   }
-  function clearFilters(){ adv=null; closeModal(); render(); toast('Filtres réinitialisés','ti-x'); }
+  function clearFilters(){ adv=null; closeModal(); render(); renderActiveFilters(); toast('Filtres réinitialisés','ti-x'); }
+  function renderActiveFilters(){
+    const el=$('#activeFilters'); if(!el) return;
+    const chips=[];
+    if(adv){
+      if(adv.cat) chips.push(['cat', adv.cat.split(' › ').pop()]);
+      if(adv.min) chips.push(['min','≥ '+(+adv.min).toLocaleString('fr-FR')+' dh']);
+      if(adv.max) chips.push(['max','≤ '+(+adv.max).toLocaleString('fr-FR')+' dh']);
+      if(adv.cond) chips.push(['cond',adv.cond]);
+      if(adv.specs) for(const k in adv.specs){ const f=adv.specs[k];
+        if(typeof f==='object'){ if(f.min) chips.push(['spec:'+k+':min',k+' ≥ '+f.min]); if(f.max) chips.push(['spec:'+k+':max',k+' ≤ '+f.max]); }
+        else if(f) chips.push(['spec:'+k,f]); }
+    }
+    if(!chips.length){ el.innerHTML=''; el.hidden=true; return; }
+    el.hidden=false;
+    el.innerHTML=chips.map(([key,lab])=>`<button class="afchip" onclick="removeFilter('${key}')">${escapeHtml(String(lab))} <i class="ti ti-x"></i></button>`).join('')+`<button class="afchip clear" onclick="clearFilters()">Tout effacer</button>`;
+  }
+  function removeFilter(key){
+    if(!adv) return;
+    if(key==='cat') adv.cat='';
+    else if(key==='min') adv.min=0;
+    else if(key==='max') adv.max=0;
+    else if(key==='cond') adv.cond='';
+    else if(key.indexOf('spec:')===0){ const p=key.split(':'); const k=p[1];
+      if(p[2]){ if(adv.specs&&adv.specs[k]){ delete adv.specs[k][p[2]]; if(!Object.keys(adv.specs[k]).length) delete adv.specs[k]; } }
+      else if(adv.specs) delete adv.specs[k]; }
+    if(adv.specs && !Object.keys(adv.specs).length) delete adv.specs;
+    if(!adv.min&&!adv.max&&!adv.cat&&!adv.cond&&!(adv.specs&&Object.keys(adv.specs).length)) adv=null;
+    render(); renderActiveFilters();
+  }
   function listingByKey(fk){ return listings.find(l=>(l._id&&l._id===fk)||('demo:'+l.t===fk)); }
   function toggleCompare(btn){
     const fk=btn.dataset.fk;
