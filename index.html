@@ -588,6 +588,12 @@
   /* détails par catégorie (formulaire de dépôt) */
   .spec-h{font-size:13px;font-weight:700;color:var(--fg-soft);margin:6px 0 10px;display:flex;align-items:center;gap:6px} .spec-h i{color:var(--accent)}
   .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px}
+  /* espace admin */
+  .adm-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .adm-info{display:flex;flex-direction:column;gap:3px;min-width:170px;flex:1}
+  .adm-info b{font-size:14px;display:flex;align-items:center;gap:6px} .adm-info span{font-size:12px;color:var(--fg-soft)} .adm-reason{font-style:italic}
+  .adm-acts{display:flex;gap:6px;flex-wrap:wrap}
+  .btn-ghost.sm{padding:7px 10px;font-size:12px;width:auto}
   /* Barre de contact collante (mobile) */
   .dbar{display:none}
   @media(max-width:680px){
@@ -1111,6 +1117,14 @@
   <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Déposer une annonce">
     <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
     <div class="form" id="postBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="admin" aria-hidden="true">
+  <div class="scrim" data-close></div>
+  <div class="sheet narrow" role="dialog" aria-modal="true" aria-label="Espace admin" style="max-width:680px">
+    <button class="sheet-close" data-close aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="form" id="adminBody"></div>
   </div>
 </div>
 
@@ -1650,7 +1664,7 @@
     const uid=session.user.id, email=session.user.email;
     let prof=null; try{ const r=await sb.from('profiles').select('*').eq('id',uid).single(); prof=r.data; }catch(e){}
     const V=!!(prof&&prof.verified);
-    me={ id:uid, email, name:(prof&&prof.name)||email.split('@')[0], type:(prof&&prof.type)||'part', verified:V, vrf:V };
+    me={ id:uid, email, name:(prof&&prof.name)||email.split('@')[0], type:(prof&&prof.type)||'part', verified:V, vrf:V, admin:!!(prof&&prof.is_admin) };
     updateAccountUI(); afterAuth();
   }
   const fallbackImg=cat=>CAT_IMG[Object.keys(CAT_IMG).find(k=>(cat||'').startsWith(k))||'Multimédia'];
@@ -1671,7 +1685,7 @@
   function rebuildListings(){ listings.length=0; dbListings.forEach(l=>listings.push(l)); SEED.forEach(l=>listings.push(l)); render(); }
   async function loadListings(){
     try{ const {data,error}=await sb.from('listings').select('*').order('created_at',{ascending:false}).limit(300);
-      if(error){console.warn('load',error.message);return;} dbListings=(data||[]).map(dbToListing); rebuildListings(); openFromHash();
+      if(error){console.warn('load',error.message);return;} dbListings=(data||[]).filter(r=>!r.suspended).map(dbToListing); rebuildListings(); openFromHash();
     }catch(e){console.warn(e);}
   }
   async function loadFavs(){
@@ -2038,6 +2052,7 @@
       <a id="amDash"><i class="ti ti-chart-bar"></i> Tableau de bord</a>
       <a id="amFollowed"><i class="ti ti-users"></i> Vendeurs suivis</a>
       <a id="amAlerts"><i class="ti ti-bell"></i> Mes alertes</a>
+      ${me&&me.admin?'<a id="amAdmin" style="color:var(--accent)"><i class="ti ti-shield-cog"></i> Espace admin</a>':''}
       <a id="amOut"><i class="ti ti-logout"></i> Se déconnecter</a>`;
     document.querySelector('.acc-wrap').appendChild(m);
     m.querySelector('#amPost').onclick=()=>{m.remove();openPost();};
@@ -2046,6 +2061,7 @@
     m.querySelector('#amDash').onclick=()=>{m.remove();openDashboard();};
     m.querySelector('#amFollowed').onclick=()=>{m.remove();active.clear();document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));searchPred=(l)=>!!(me&&l._uid&&following.has(l._uid));render();const n=filtered().length;toast(n?(n+' annonce'+(n>1?'s':'')+' de tes vendeurs suivis'):'Tu ne suis aucun vendeur (ou pas d\'annonce)','ti-users');$('#listings').scrollIntoView({behavior:'smooth'});};
     m.querySelector('#amAlerts').onclick=()=>{m.remove();openAlerts();};
+    if(m.querySelector('#amAdmin')) m.querySelector('#amAdmin').onclick=()=>{m.remove();openAdmin();};
     m.querySelector('#amOut').onclick=()=>{m.remove();logout();};
   }
   document.addEventListener('click',e=>{const m=document.querySelector('.acc-menu');if(m&&!m.contains(e.target)&&!$('#accBtn').contains(e.target))m.remove();});
@@ -2109,6 +2125,63 @@
           : `<input data-spec="${f.k}" type="${f.type}" value="${escapeHtml(String(v))}" placeholder="${f.suffix||''}">`;
         return `<div class="field2"><label>${f.label}${f.suffix?` (${f.suffix})`:''}</label>${inner}</div>`;
       }).join('')+`</div>`;
+  }
+  // ===== Espace admin / modération =====
+  async function openAdmin(){
+    if(!me||!me.admin){ toast('Accès réservé aux administrateurs','ti-lock'); return; }
+    openModal('admin');
+    $('#adminBody').innerHTML='<h2 class="serif"><i class="ti ti-shield-cog" style="color:var(--accent)"></i> Espace admin</h2><p class="sub">Chargement des signalements…</p>';
+    let reports=[];
+    const {data,error}=await sb.from('reports').select('*').order('created_at',{ascending:false});
+    if(error){ $('#adminBody').innerHTML='<h2 class="serif"><i class="ti ti-shield-cog" style="color:var(--accent)"></i> Espace admin</h2><p class="sub" style="color:#DC2626">Impossible de lire les signalements : '+escapeHtml(error.message)+'<br>As-tu bien lancé le SQL admin (politiques + is_admin) ?</p>'; return; }
+    reports=data||[];
+    const ids=[...new Set(reports.map(r=>r.listing_id).filter(Boolean))]; let lmap={};
+    if(ids.length){ try{ const r=await sb.from('listings').select('id,title,seller_name,user_id,suspended').in('id',ids); (r.data||[]).forEach(l=>lmap[l.id]=l); }catch(e){} }
+    renderAdmin(reports,lmap);
+  }
+  function renderAdmin(reports,lmap){
+    const grouped={}; reports.forEach(r=>{ const k=r.listing_id||'autre'; (grouped[k]=grouped[k]||[]).push(r); });
+    const rows=Object.entries(grouped).map(([lid,rs])=>{
+      const l=lmap[lid];
+      const title=l?escapeHtml(l.title||'(sans titre)'):'(annonce supprimée)';
+      const reasons=[...new Set(rs.map(r=>r.reason||'—'))].map(escapeHtml).join(' · ');
+      const susp=l&&l.suspended;
+      return `<div class="adm-row">
+        <div class="adm-info"><b>${title} ${susp?'<span class="protag" style="background:#DC2626">masquée</span>':''}</b><span>${l?('par '+escapeHtml(l.seller_name||'?')):''} · ${rs.length} signalement${rs.length>1?'s':''}</span><span class="adm-reason">« ${reasons} »</span></div>
+        <div class="adm-acts">
+          ${l?(susp?`<button class="btn-ghost sm" onclick="adminSuspend('${lid}',false)"><i class="ti ti-eye"></i> Réafficher</button>`:`<button class="btn-ghost sm" onclick="adminSuspend('${lid}',true)"><i class="ti ti-eye-off"></i> Masquer</button>`):''}
+          ${l?`<button class="btn-ghost sm" onclick="adminDeleteListing('${lid}')"><i class="ti ti-trash"></i> Supprimer</button>`:''}
+          ${l&&l.user_id?`<button class="btn-ghost sm" onclick="adminBan('${l.user_id}')"><i class="ti ti-ban"></i> Bannir</button>`:''}
+          <button class="btn-ghost sm" onclick="adminDismiss('${lid}')"><i class="ti ti-check"></i> Ignorer</button>
+        </div></div>`;
+    });
+    $('#adminBody').innerHTML=`<h2 class="serif"><i class="ti ti-shield-cog" style="color:var(--accent)"></i> Espace admin</h2>
+      <p class="sub">${reports.length} signalement${reports.length>1?'s':''} · ${Object.keys(grouped).length} annonce(s) concernée(s)</p>
+      ${rows.length?rows.join(''):'<div class="empty"><i class="ti ti-mood-check"></i><b>Aucun signalement</b>Tout est propre. 🎉</div>'}`;
+  }
+  async function adminSuspend(id,val){
+    const {error}=await sb.from('listings').update({suspended:val}).eq('id',id);
+    if(error){ toast('Erreur : '+error.message,'ti-alert-triangle'); return; }
+    toast(val?'Annonce masquée':'Annonce réaffichée',val?'ti-eye-off':'ti-eye'); await loadListings(); openAdmin();
+  }
+  async function adminDeleteListing(id){
+    if(!confirm('Supprimer définitivement cette annonce ?'))return;
+    const {error}=await sb.from('listings').delete().eq('id',id);
+    if(error){ toast('Erreur : '+error.message,'ti-alert-triangle'); return; }
+    try{ await sb.from('reports').delete().eq('listing_id',id); }catch(e){}
+    toast('Annonce supprimée','ti-trash'); await loadListings(); openAdmin();
+  }
+  async function adminDismiss(lid){
+    const {error}=await sb.from('reports').delete().eq('listing_id',lid);
+    if(error){ toast('Erreur : '+error.message,'ti-alert-triangle'); return; }
+    toast('Signalements ignorés','ti-check'); openAdmin();
+  }
+  async function adminBan(uid){
+    if(!confirm('Bannir ce vendeur ? Toutes ses annonces seront masquées.'))return;
+    const e1=(await sb.from('profiles').update({banned:true}).eq('id',uid)).error;
+    if(e1){ toast('Erreur : '+e1.message,'ti-alert-triangle'); return; }
+    try{ await sb.from('listings').update({suspended:true}).eq('user_id',uid); }catch(e){}
+    toast('Vendeur banni · annonces masquées','ti-ban'); await loadListings(); openAdmin();
   }
   function openPost(){ if(!me){toast('Crée un compte pour déposer une annonce','ti-lock');openAuth('signup');return;} renderPost(); openModal('post'); }
   let poImgData=null;
