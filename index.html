@@ -614,13 +614,6 @@
   .ph-add{aspect-ratio:1;border:2px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg-soft);font-size:11px;font-weight:600;cursor:pointer} .ph-add i{font-size:22px;color:var(--accent)} .ph-add:hover{border-color:var(--accent)}
   @media(max-width:680px){ .photo-mgr{grid-template-columns:repeat(3,1fr)} }
   /* filtres actifs (style leboncoin) */
-  /* bandeau d'installation */
-  .install-banner{display:flex;align-items:center;gap:14px;max-width:1180px;margin:16px auto 0;padding:16px 18px;background:linear-gradient(135deg,var(--accent),#D85A30);color:#fff;border-radius:18px;box-shadow:var(--shadow-lg);position:relative}
-  .install-banner .ib-icon{font-size:28px;display:grid;place-items:center;width:52px;height:52px;background:rgba(255,255,255,.18);border-radius:14px;flex-shrink:0}
-  .install-banner .ib-text{flex:1;min-width:0} .install-banner .ib-text b{display:block;font-size:17px;letter-spacing:-.2px} .install-banner .ib-text span{font-size:13px;opacity:.92}
-  .install-banner .ib-cta{background:#fff;color:var(--accent);font-weight:700;padding:11px 20px;border-radius:var(--r-pill);white-space:nowrap;flex-shrink:0;font-size:14px;cursor:pointer;transition:.15s var(--ease)} .install-banner .ib-cta:hover{filter:brightness(.95)}
-  .install-banner .ib-close{position:absolute;top:7px;right:11px;color:#fff;opacity:.75;font-size:17px;cursor:pointer} .install-banner .ib-close:hover{opacity:1}
-  @media(max-width:680px){ .install-banner{flex-wrap:wrap;margin:12px 14px 0;padding:15px 16px} .install-banner .ib-cta{width:100%;justify-content:center;text-align:center;order:3} .install-banner .ib-text{flex-basis:calc(100% - 66px)} }
   /* mode "page de résultats" : on masque l'accueil */
   body.results .home-only{display:none!important}
   body.results #stories, body.results #reco-sec, body.results #hist-sec{display:none!important}
@@ -826,13 +819,6 @@
     </div>
   </nav>
 </header>
-
-<div id="installBanner" class="install-banner home-only" hidden>
-  <div class="ib-icon"><i class="ti ti-download"></i></div>
-  <div class="ib-text"><b>Installe l'application Zilo 📲</b><span id="ibSub">Accès rapide en plein écran + notifications, directement sur ton écran d'accueil.</span></div>
-  <button class="ib-cta" id="ibInstall">Installer</button>
-  <button class="ib-close" id="ibClose" aria-label="Plus tard"><i class="ti ti-x"></i></button>
-</div>
 
 <div class="hero home-only">
   <div class="wrap hero-grid">
@@ -1765,29 +1751,6 @@
   $('#goBtn').addEventListener('click',runSearch);
   q.addEventListener('keydown',e=>{if(e.key==='Enter')runSearch();});
   ['.hdr-logo','#seeAll'].forEach(sel=>{ const el=document.querySelector(sel); if(el) el.addEventListener('click',e=>{ e.preventDefault(); if(location.hash){location.hash='';} goHome(); }); });
-
-  // ===== Bandeau d'installation (PWA) =====
-  let deferredPrompt=null;
-  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; });
-  window.addEventListener('appinstalled',()=>{ const b=$('#installBanner'); if(b)b.hidden=true; try{localStorage.setItem('zilo_installed','1');}catch(_){}; });
-  function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }
-  (function initInstallBanner(){
-    const b=$('#installBanner'); if(!b) return;
-    let dismissed=false, installed=false;
-    try{ dismissed=sessionStorage.getItem('zilo_install_dismiss')==='1'; installed=localStorage.getItem('zilo_installed')==='1'; }catch(_){}
-    if(isStandalone()||installed||dismissed){ b.hidden=true; return; }
-    const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-    const cta=$('#ibInstall'), sub=$('#ibSub');
-    if(ios){
-      cta.textContent='Voir comment';
-      sub.textContent='Sur Safari : bouton Partager ↑ puis « Sur l\'écran d\'accueil ».';
-      cta.onclick=()=>toast('Safari : Partager ↑ → « Sur l\'écran d\'accueil »','ti-device-mobile');
-    } else {
-      cta.onclick=async()=>{ if(deferredPrompt){ deferredPrompt.prompt(); const r=await deferredPrompt.userChoice; deferredPrompt=null; if(r&&r.outcome==='accepted'){ b.hidden=true; } } else { toast('Menu du navigateur → « Installer l\'application »','ti-download'); } };
-    }
-    $('#ibClose').onclick=()=>{ b.hidden=true; try{sessionStorage.setItem('zilo_install_dismiss','1');}catch(_){}; };
-    b.hidden=false;
-  })();
   document.querySelectorAll('.suggest .chip').forEach(c=>c.addEventListener('click',function(){q.value=this.dataset.q;runSearch();}));
   // barre de recherche du header (ligne du haut)
   const hq=$('#hq');
