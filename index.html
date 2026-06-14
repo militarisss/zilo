@@ -1301,11 +1301,37 @@
     if(navigator.share){ navigator.share({title:'Zilo — '+l.t, text:l.t+' · '+l.p+' '+l.u, url}).catch(()=>{}); }
     else { try{navigator.clipboard.writeText(url);}catch(e){} toast('Lien copié ✓','ti-link'); }
   }
+  const CATSLUGS=[
+    {slug:'immobilier',prefix:'Immobilier',label:'Immobilier'},
+    {slug:'vehicules',prefix:'Auto & Moto',label:'Véhicules'},
+    {slug:'voitures',prefix:'Auto & Moto › Voitures',label:'Voitures'},
+    {slug:'motos',prefix:'Auto & Moto › Motos',label:'Motos'},
+    {slug:'multimedia',prefix:'Multimédia',label:'Multimédia'},
+    {slug:'telephones',prefix:'Multimédia › Téléphones',label:'Téléphones'},
+    {slug:'ordinateurs',prefix:'Multimédia › Ordinateurs',label:'Ordinateurs'},
+    {slug:'maison',prefix:'Maison & Déco',label:'Maison & Déco'},
+    {slug:'mode',prefix:'Mode',label:'Mode'},
+    {slug:'emploi',prefix:'Emploi',label:'Emploi'},
+    {slug:'enfance',prefix:'Enfance',label:'Enfance'},
+  ];
+  let catActive=false;
+  function applyCat(prefix,label){
+    if(!prefix) return; catActive=true;
+    active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
+    adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix);
+    if(view==='map') view='grid';
+    render();
+    const n=filtered().length; const lab=label||prefix.split(' › ').pop();
+    toast((n? n+' annonce'+(n>1?'s':''):'Aucune annonce')+' · '+lab, n?'ti-category':'ti-mood-empty');
+    const sec=document.getElementById('listings'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'start'});
+  }
   function openFromHash(){
-    const m=location.hash.match(/#a=(.+)/); if(!m) return;
-    const id=decodeURIComponent(m[1]);
-    const idx=listings.findIndex(l=> (l._id&&l._id===id) || ('demo:'+l.t===id));
-    if(idx>=0) openDetail(idx);
+    const h=location.hash;
+    const ma=h.match(/^#a=(.+)/);
+    if(ma){ const id=decodeURIComponent(ma[1]); const idx=listings.findIndex(l=> (l._id&&l._id===id) || ('demo:'+l.t===id)); if(idx>=0) openDetail(idx); return; }
+    const mc=h.match(/^#cat=(.+)/);
+    if(mc){ const e=CATSLUGS.find(c=>c.slug===mc[1]); const prefix=e?e.prefix:decodeURIComponent(mc[1]); applyCat(prefix, e&&e.label); return; }
+    if(h===''||h==='#'){ if(catActive){ catActive=false; searchPred=null; render(); } }
   }
   addEventListener('hashchange',openFromHash);
   async function reportListing(i){
@@ -1404,16 +1430,11 @@
     if(s.classList.contains('add')){ openPost(); return; }
     filterByCat(s.dataset.cat, s.textContent.trim());
   }));
-  // ===== Filtrer par catégorie (stories + menu header) =====
-  function filterByCat(prefix, label){
+  // ===== Filtrer par catégorie : met à jour l'URL (#cat=…), le routeur applique (voir applyCat) =====
+  function filterByCat(prefix){
     if(!prefix) return;
-    active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
-    adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix);
-    if(view==='map'){ view='grid'; }
-    render();
-    const n=filtered().length;
-    toast((n? n+' annonce'+(n>1?'s':'') : 'Aucune annonce')+' · '+(label||prefix), n?'ti-category':'ti-mood-empty');
-    const sec=document.getElementById('listings'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'start'});
+    const e=CATSLUGS.find(c=>c.prefix===prefix); const slug=e?e.slug:encodeURIComponent(prefix);
+    if(location.hash==='#cat='+slug) applyCat(prefix, e&&e.label); else location.hash='#cat='+slug;
   }
   const TOPMAP={'Immobilier':'Immobilier','Véhicules':'Auto & Moto','Multimédia':'Multimédia','Maison & Déco':'Maison & Déco','Emploi':'Emploi'};
   { const nav=document.querySelector('.hdr-cats'); if(nav) nav.addEventListener('click',e=>{
