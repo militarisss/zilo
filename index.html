@@ -614,6 +614,10 @@
   .ph-add{aspect-ratio:1;border:2px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg-soft);font-size:11px;font-weight:600;cursor:pointer} .ph-add i{font-size:22px;color:var(--accent)} .ph-add:hover{border-color:var(--accent)}
   @media(max-width:680px){ .photo-mgr{grid-template-columns:repeat(3,1fr)} }
   /* filtres actifs (style leboncoin) */
+  /* mode "page de résultats" : on masque l'accueil */
+  body.results .home-only{display:none!important}
+  body.results #stories, body.results #reco-sec, body.results #hist-sec{display:none!important}
+  body.results #listings{padding-top:18px}
   .active-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 18px}
   .afchip{font-size:12.5px;font-weight:600;background:var(--accent-tint);color:var(--accent);border:1px solid var(--accent);padding:6px 11px;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:.15s var(--ease)} .afchip i{font-size:13px} .afchip:hover{filter:brightness(.96)}
   .afchip.clear{background:transparent;color:var(--fg-soft);border-color:var(--border)}
@@ -816,7 +820,7 @@
   </nav>
 </header>
 
-<div class="hero">
+<div class="hero home-only">
   <div class="wrap hero-grid">
     <div class="hero-left">
     <span class="eyebrow"><i class="ti ti-sparkles"></i> Nouveau · Recherche par IA</span>
@@ -876,8 +880,8 @@
 <section id="listings" class="reveal">
   <div class="wrap">
     <div class="sec-head">
-      <div><h2 class="serif">Sélectionné pour toi</h2><p id="listingsSub">Trié par l'IA selon ta zone et tes recherches récentes.</p></div>
-      <a class="see-all" href="#">Tout voir <i class="ti ti-arrow-right"></i></a>
+      <div><h2 class="serif" id="listingsTitle">Sélectionné pour toi</h2><p id="listingsSub">Trié par l'IA selon ta zone et tes recherches récentes.</p></div>
+      <a class="see-all" id="seeAll" href="#">Tout voir <i class="ti ti-arrow-right"></i></a>
     </div>
 
     <div class="stories scrollx" id="stories"></div>
@@ -930,7 +934,7 @@
 </section>
 
 <!-- CARTE ACCUEIL -->
-<section id="homemap-sec" class="reveal">
+<section id="homemap-sec" class="reveal home-only">
   <div class="wrap">
     <div class="sec-head"><div><h2 class="serif">L'immobilier autour de toi</h2><p>Les biens immobiliers près de chez toi, sur la carte.</p></div></div>
     <div id="homemap"></div>
@@ -1227,7 +1231,7 @@
   const $ = s => document.querySelector(s);
   const grid = $('#grid');
   const ini = n => n.split(' ').map(w=>w[0]).join('').slice(0,2);
-  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null, adv=null, curCat=null;
+  let geoCity='Casablanca', geoQ=null, searchPred=null, editingId=null, sortBy='relevance', userPos=null, lastItems=[], currentDetailIdx=null, adv=null, curCat=null, curSearch=null;
   let LANG=(function(){ try{return localStorage.getItem('zilo_lang')||'fr';}catch(e){return 'fr';} })();
   const AR={
     "Immobilier":"عقارات","Véhicules":"سيارات","Multimédia":"وسائط متعددة","Maison & Déco":"منزل وديكور","Emploi":"وظائف","Vendre avec l'IA":"البيع بالذكاء الاصطناعي",
@@ -1361,15 +1365,22 @@
     {slug:'enfance',prefix:'Enfance',label:'Enfance'},
   ];
   let catActive=false;
+  function setResultsMode(on,title){
+    document.body.classList.toggle('results',!!on);
+    const t=$('#listingsTitle'); if(t) t.textContent = on ? title : 'Sélectionné pour toi';
+    const sa=$('#seeAll'); if(sa) sa.innerHTML = on ? '<i class="ti ti-arrow-left"></i> Accueil' : 'Tout voir <i class="ti ti-arrow-right"></i>';
+    if(on) window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function goHome(){ curCat=null; curSearch=null; catActive=false; adv=null; searchPred=null; if(q)q.value=''; const h=$('#hq'); if(h)h.value=''; const ap=$('#aiPanel'); if(ap)ap.classList.remove('show'); setResultsMode(false); render(); renderActiveFilters(); }
   function applyCat(prefix,label){
-    if(!prefix) return; catActive=true; curCat=prefix;
+    if(!prefix) return; catActive=true; curCat=prefix; curSearch=null;
     active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
     adv=null; geoQ=null; searchPred = l => (l.cat||'').startsWith(prefix); renderActiveFilters();
     if(view==='map') view='grid';
     render();
     const n=filtered().length; const lab=label||prefix.split(' › ').pop();
     toast((n? n+' annonce'+(n>1?'s':''):'Aucune annonce')+' · '+lab, n?'ti-category':'ti-mood-empty');
-    const sec=document.getElementById('listings'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'start'});
+    setResultsMode(true, lab);
   }
   function openFromHash(){
     const h=location.hash;
@@ -1377,7 +1388,7 @@
     if(ma){ const id=decodeURIComponent(ma[1]); const idx=listings.findIndex(l=> (l._id&&l._id===id) || ('demo:'+l.t===id)); if(idx>=0) openDetail(idx); return; }
     const mc=h.match(/^#cat=(.+)/);
     if(mc){ const e=CATSLUGS.find(c=>c.slug===mc[1]); const prefix=e?e.prefix:decodeURIComponent(mc[1]); applyCat(prefix, e&&e.label); return; }
-    if(h===''||h==='#'){ if(catActive||adv){ catActive=false; curCat=null; searchPred=null; adv=null; render(); renderActiveFilters(); } }
+    if(h===''||h==='#'){ if(catActive||adv||document.body.classList.contains('results')){ goHome(); } }
   }
   addEventListener('hashchange',openFromHash);
   async function reportListing(i){
@@ -1713,7 +1724,7 @@
     {k:['voiture','citadine','auto','clio'],f:['automatique','< 90 000 dh','faible kilométrage','1ère main'],n:14},
     {k:['canapé','canape','sofa','meuble'],f:['canapé d\'angle','bon état','ce week-end','remise en main propre'],n:6},
   ];
-  function clearSearch(){ searchPred=null; q.value=''; const h=$('#hq'); if(h)h.value=''; $('#aiPanel').classList.remove('show'); render(); }
+  function clearSearch(){ searchPred=null; curSearch=null; q.value=''; const h=$('#hq'); if(h)h.value=''; $('#aiPanel').classList.remove('show'); setResultsMode(false); render(); renderActiveFilters(); }
   function runSearch(){
     const v=q.value.trim();
     if(!v){ clearSearch(); toast('Recherche effacée','ti-search'); return; }
@@ -1729,16 +1740,17 @@
       const okPrice = !maxPrice || (price && price<=maxPrice);
       return okText && okPrice;
     };
-    curCat=null; active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
+    curCat=null; curSearch=v; active.clear(); document.querySelectorAll('#filterBar .fchip').forEach(c=>c.classList.remove('on'));
     render();
     const n=filtered().length;
     $('#aiText').innerHTML=`<b>${n} annonce${n>1?'s':''}</b> ${maxPrice?('à moins de '+maxPrice.toLocaleString('fr-FR')+' dh '):''}correspondent à ta recherche.`;
     $('#aiFilters').innerHTML=(maxPrice?`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> &lt; ${maxPrice.toLocaleString('fr-FR')} dh</span>`:'')+words.slice(0,4).map(w=>`<span><i class="ti ti-check" style="font-size:12px;vertical-align:-1px"></i> ${w}</span>`).join('')+`<button class="alertbtn" onclick="saveSearch()"><i class="ti ti-bell"></i> Créer une alerte</button><button class="alertbtn" onclick="clearSearch()"><i class="ti ti-x"></i> Effacer</button>`;
     $('#aiPanel').classList.add('show');
-    $('#listings').scrollIntoView({behavior:'smooth',block:'start'});
+    setResultsMode(true, n+' résultat'+(n>1?'s':'')+' pour « '+v+' »'); renderActiveFilters();
   }
   $('#goBtn').addEventListener('click',runSearch);
   q.addEventListener('keydown',e=>{if(e.key==='Enter')runSearch();});
+  ['.hdr-logo','#seeAll'].forEach(sel=>{ const el=document.querySelector(sel); if(el) el.addEventListener('click',e=>{ e.preventDefault(); if(location.hash){location.hash='';} goHome(); }); });
   document.querySelectorAll('.suggest .chip').forEach(c=>c.addEventListener('click',function(){q.value=this.dataset.q;runSearch();}));
   // barre de recherche du header (ligne du haut)
   const hq=$('#hq');
@@ -1934,6 +1946,7 @@
   function renderActiveFilters(){
     const el=$('#activeFilters'); if(!el) return;
     const chips=[];
+    if(curSearch) chips.push(['search','« '+curSearch+' »']);
     if(adv){
       if(adv.cat) chips.push(['cat', adv.cat.split(' › ').pop()]);
       if(adv.min) chips.push(['min','≥ '+(+adv.min).toLocaleString('fr-FR')+' dh']);
@@ -1945,9 +1958,12 @@
     }
     if(!chips.length){ el.innerHTML=''; el.hidden=true; return; }
     el.hidden=false;
-    el.innerHTML=chips.map(([key,lab])=>`<button class="afchip" onclick="removeFilter('${key}')">${escapeHtml(String(lab))} <i class="ti ti-x"></i></button>`).join('')+`<button class="afchip clear" onclick="clearFilters()">Tout effacer</button>`;
+    el.innerHTML=chips.map(([key,lab])=>`<button class="afchip" onclick="removeFilter('${key}')">${escapeHtml(String(lab))} <i class="ti ti-x"></i></button>`).join('')
+      +(curSearch?`<button class="afchip" onclick="saveSearch()"><i class="ti ti-bell"></i> Créer une alerte</button>`:'')
+      +`<button class="afchip clear" onclick="goHome()">Tout effacer</button>`;
   }
   function removeFilter(key){
+    if(key==='search'){ goHome(); return; }
     if(!adv) return;
     if(key==='cat') adv.cat='';
     else if(key==='min') adv.min=0;
