@@ -590,6 +590,16 @@
   /* détails par catégorie (formulaire de dépôt) */
   .spec-h{font-size:13px;font-weight:700;color:var(--fg-soft);margin:6px 0 10px;display:flex;align-items:center;gap:6px} .spec-h i{color:var(--accent)}
   .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px}
+  /* gestionnaire de photos */
+  .photo-mgr{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
+  .ph-tile{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--border);cursor:grab}
+  .ph-tile img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+  .ph-main{position:absolute;top:4px;left:4px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px}
+  .ph-del{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:1;display:grid;place-items:center;cursor:pointer}
+  .ph-move{position:absolute;bottom:3px;right:3px;display:flex;gap:3px}
+  .ph-move button{width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:1;display:grid;place-items:center;cursor:pointer}
+  .ph-add{aspect-ratio:1;border:2px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg-soft);font-size:11px;font-weight:600;cursor:pointer} .ph-add i{font-size:22px;color:var(--accent)} .ph-add:hover{border-color:var(--accent)}
+  @media(max-width:680px){ .photo-mgr{grid-template-columns:repeat(3,1fr)} }
   /* filtres actifs (style leboncoin) */
   .active-filters{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 18px}
   .afchip{font-size:12.5px;font-weight:600;background:var(--accent-tint);color:var(--accent);border:1px solid var(--accent);padding:6px 11px;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:.15s var(--ease)} .afchip i{font-size:13px} .afchip:hover{filter:brightness(.96)}
@@ -1506,8 +1516,18 @@
     if(!rows.length) return '';
     return `<div class="dcrit-h">Critères</div><div class="dcrit">${rows.map(([k,v,ic])=>`<div class="dcrit-item"><span class="k">${k}</span><span class="v"><i class="ti ${ic}"></i> ${escapeHtml(String(v))}</span></div>`).join('')}</div>`;
   }
+  function setMeta(name,content,attr){ attr=attr||'property'; let m=document.head.querySelector(`meta[${attr}="${name}"]`); if(!m){ m=document.createElement('meta'); m.setAttribute(attr,name); document.head.appendChild(m); } m.setAttribute('content',content); }
+  function setListingMeta(l){
+    document.title=`${l.t} · ${l.p} ${l.u} — Zilo`;
+    setMeta('description', (l.desc||l.t).slice(0,155), 'name');
+    setMeta('og:title', l.t); setMeta('og:description', (l.desc||'').slice(0,155));
+    setMeta('og:image', IMG(l.imgs[0],1200)); setMeta('og:type','product');
+    setMeta('og:url', location.origin+location.pathname+'#a='+encodeURIComponent(l._id||('demo:'+l.t)));
+    setMeta('twitter:card','summary_large_image','name');
+  }
+  function resetMeta(){ document.title='Zilo — Petites annonces au Maroc'; }
   function openDetail(i){
-    const l=listings[i]; gImgs=l.imgs; gIdx=0; currentDetailIdx=i; pushHistory(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
+    const l=listings[i]; gImgs=l.imgs; gIdx=0; currentDetailIdx=i; pushHistory(l); setListingMeta(l); if(l._id){ try{sb.rpc('bump_views',{lid:l._id});}catch(e){} l.views=(l.views||0)+1; }
     $('#gimg').src=IMG(l.imgs[0],900); $('#gimg').alt=l.t; $('#gcount').textContent='1 / '+l.imgs.length;
     $('#gthumbs').innerHTML=l.imgs.map((id,k)=>`<img src="${IMG(id,160)}" alt="" class="${k===0?'on':''}" onclick="setG(${k})">`).join('');
     const sellerAv = l.pro?`<span class="av pro"><i class="ti ${l.proIcon||'ti-building-store'}"></i></span>`:`<span class="av" style="background:${l.av}">${ini(l.sn)}</span>`;
@@ -1577,7 +1597,7 @@
   // modal helpers
   let openId=null;
   function openModal(id){ closeModal(); openId=id; const m=document.getElementById(id); m.classList.add('open'); m.setAttribute('aria-hidden','false'); document.body.classList.add('lock'); if(LANG==='ar') applyAr(m); }
-  function closeModal(){ if(!openId)return; const m=document.getElementById(openId); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); document.body.classList.remove('lock'); openId=null; }
+  function closeModal(){ if(!openId)return; const m=document.getElementById(openId); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); document.body.classList.remove('lock'); if(openId==='detail') resetMeta(); openId=null; }
   document.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',closeModal));
   addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
@@ -2347,7 +2367,9 @@
       <div class="row2f"><div class="field2"><label>Prix *</label><input id="poPrice" type="number" min="0" placeholder="0"></div><div class="field2"><label>Unité</label><select id="poUnit"><option>dh</option><option>dh/mois</option></select></div></div>
       <div class="field2"><label>État</label><select id="poState"><option>Neuf</option><option selected>Très bon état</option><option>Bon état</option><option>Correct</option></select></div>
       <div id="poSpecs"></div>
-      <div class="field2"><label>Photos ${pl?'(laisse vide pour garder les actuelles)':'(plusieurs possibles)'}</label><input id="poImg" type="file" accept="image/*" multiple></div>
+      <div class="field2"><label>Photos ${pl?'(laisse vide pour garder les actuelles)':'(glisse pour réordonner · la 1ʳᵉ est la principale)'}</label>
+        <input id="poImg" type="file" accept="image/*" multiple hidden>
+        <div id="poPhotos" class="photo-mgr"></div></div>
       <div class="field2"><label><i class="ti ti-player-play" style="color:var(--accent)"></i> Vidéo (20s max, optionnel — mode TikTok)</label><input id="poVid" type="file" accept="video/*"></div>
       <button type="button" class="btn-ghost" id="aiFill" style="width:100%;justify-content:center;margin-bottom:12px"><i class="ti ti-sparkles"></i> Remplir avec l'IA depuis la photo</button>
       <div class="field2"><label>Description</label><textarea id="poDesc" placeholder="Décris ton article, son état, les détails utiles…"></textarea></div>
@@ -2358,6 +2380,7 @@
     $('#poBtn').onclick=submitPost;
     $('#aiFill').onclick=aiFillFromPhoto;
     $('#poCat').onchange=()=>renderSpecs($('#poCat').value);
+    poFiles=[]; $('#poImg').onchange=e=>addPhotoFiles(e.target.files); renderPhotoPreviews();
     if(pl){
       $('#poTitle').value=pl.t||''; $('#poDesc').value=pl.desc||'';
       const co=[...$('#poCat').options].find(o=>o.value===pl.cat); if(co)$('#poCat').value=pl.cat;
@@ -2368,8 +2391,45 @@
     }
     renderSpecs($('#poCat').value, pl&&pl.specs);
   }
+  // ===== Gestionnaire de photos (aperçu, réordonner, supprimer, compression) =====
+  let poFiles=[];
+  function addPhotoFiles(list){
+    [...list].forEach(f=>{ if(!f.type||!f.type.startsWith('image/'))return; f._url=URL.createObjectURL(f); poFiles.push(f); });
+    if(poFiles.length>12){ poFiles.slice(12).forEach(f=>URL.revokeObjectURL(f._url)); poFiles=poFiles.slice(0,12); toast('12 photos maximum','ti-info-circle'); }
+    renderPhotoPreviews();
+  }
+  function renderPhotoPreviews(){
+    const el=$('#poPhotos'); if(!el) return;
+    el.innerHTML = poFiles.map((f,i)=>`<div class="ph-tile" draggable="true" data-i="${i}">
+        <img src="${f._url}" alt="">
+        ${i===0?'<span class="ph-main">Principale</span>':''}
+        <button type="button" class="ph-del" data-del="${i}" aria-label="Retirer">&times;</button>
+        <div class="ph-move">${i>0?`<button type="button" data-mv="${i}" data-dir="-1" aria-label="Reculer">‹</button>`:''}${i<poFiles.length-1?`<button type="button" data-mv="${i}" data-dir="1" aria-label="Avancer">›</button>`:''}</div>
+      </div>`).join('')
+      + `<button type="button" class="ph-add" id="phAdd"><i class="ti ti-camera-plus"></i><span>Ajouter</span></button>`;
+    el.querySelector('#phAdd').onclick=()=>$('#poImg').click();
+    el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.del; URL.revokeObjectURL(poFiles[i]._url); poFiles.splice(i,1); renderPhotoPreviews(); });
+    el.querySelectorAll('[data-mv]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.mv,d=+b.dataset.dir,j=i+d; if(j<0||j>=poFiles.length)return; const t=poFiles[i];poFiles[i]=poFiles[j];poFiles[j]=t; renderPhotoPreviews(); });
+    let dragI=null;
+    el.querySelectorAll('.ph-tile').forEach(t=>{
+      t.addEventListener('dragstart',()=>{ dragI=+t.dataset.i; });
+      t.addEventListener('dragover',e=>e.preventDefault());
+      t.addEventListener('drop',e=>{ e.preventDefault(); const to=+t.dataset.i; if(dragI==null||dragI===to)return; const [m]=poFiles.splice(dragI,1); poFiles.splice(to,0,m); dragI=null; renderPhotoPreviews(); });
+    });
+  }
+  function compressImage(file, max=1600, q=0.82){
+    return new Promise(res=>{
+      const img=new Image();
+      img.onload=()=>{ let w=img.width,h=img.height;
+        if(w>max||h>max){ if(w>=h){ h=Math.round(h*max/w); w=max; } else { w=Math.round(w*max/h); h=max; } }
+        const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+        c.toBlob(b=>{ if(!b){res(file);return;} res(new File([b],(file.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'})); },'image/jpeg',q);
+      };
+      img.onerror=()=>res(file); img.src=URL.createObjectURL(file);
+    });
+  }
   async function aiFillFromPhoto(){
-    const f=$('#poImg').files[0];
+    const f=poFiles[0];
     if(!f){toast('Choisis d\'abord une photo','ti-photo');return;}
     const b=$('#aiFill'); b.disabled=true; const o=b.innerHTML; b.innerHTML='<i class="ti ti-loader-2"></i> L\'IA analyse la photo…';
     try{
@@ -2397,9 +2457,9 @@
     const city=$('#poCity').value, qv=$('#poQ').value, cc=CITYC[city]||[33.5731,-7.5898];
     const jit=(title.length*13%80)/1000-0.04;
     const btn=$('#poBtn'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2"></i> Enregistrement…';
-    const files=[...$('#poImg').files]; const images=[];
-    for(const f of files){
-      try{ const path=me.id+'/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+f.name.replace(/[^\w.\-]+/g,'_');
+    const files=poFiles.slice(); const images=[];
+    for(const f0 of files){
+      try{ const f=await compressImage(f0); const path=me.id+'/'+Date.now()+'_'+Math.round(Math.random()*1e6)+'_'+(f0.name||'photo').replace(/[^\w.\-]+/g,'_').replace(/\.\w+$/,'')+'.jpg';
         const up=await sb.storage.from('photos').upload(path,f);
         if(!up.error){ images.push(sb.storage.from('photos').getPublicUrl(path).data.publicUrl); }
       }catch(e){}
