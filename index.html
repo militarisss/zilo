@@ -941,7 +941,7 @@
   </div>
 </section>
 
-<section id="sell" class="reveal">
+<section id="sell" class="reveal home-only">
   <div class="wrap">
     <div class="sell">
       <div>
@@ -968,7 +968,7 @@
   </div>
 </section>
 
-<section class="reveal">
+<section class="reveal home-only">
   <div class="wrap">
     <div class="sec-head"><div><h2 class="serif">Deviens vérifié, vends en confiance</h2><p>Le badge vérifié rassure les acheteurs — et fait vendre plus vite.</p></div></div>
     <div class="verify">
@@ -995,7 +995,7 @@
   </div>
 </section>
 
-<section class="reveal">
+<section class="reveal home-only">
   <div class="wrap">
     <div class="trust">
       <h2 class="serif">Acheter d'occasion devrait être <em>sûr et simple</em>.</h2>
@@ -1009,7 +1009,7 @@
   </div>
 </section>
 
-<section class="reveal" style="padding:8px 0 36px">
+<section class="reveal home-only" style="padding:8px 0 36px">
   <div class="wrap" style="display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center">
     <div class="social">
       <div class="avs" aria-hidden="true">
@@ -2276,8 +2276,8 @@
   document.addEventListener('click',e=>{const m=document.querySelector('.acc-menu');if(m&&!m.contains(e.target)&&!$('#accBtn').contains(e.target))m.remove();});
 
   // ===== Critères structurés par catégorie =====
-  const CAR_BRANDS=['Dacia','Renault','Peugeot','Volkswagen','Ford','Fiat','Toyota','Hyundai','Kia','Citroën','Mercedes','BMW','Audi','Opel','Nissan','Seat','Skoda','Honda','Mazda','Suzuki','Autre'];
-  const MOTO_BRANDS=['Yamaha','Honda','SYM','Kymco','Piaggio','Vespa','Suzuki','Kawasaki','KTM','Peugeot','Aprilia','Autre'];
+  const CAR_BRANDS=['Abarth','Alfa Romeo','Aston Martin','Audi','Bentley','BMW','BYD','Cadillac','Chevrolet','Chery','Chrysler','Citroën','Cupra','Dacia','Daewoo','Daihatsu','Dodge','DS','Ferrari','Fiat','Ford','Geely','Genesis','GMC','Great Wall','Honda','Hummer','Hyundai','Infiniti','Isuzu','Iveco','Jaguar','Jeep','Kia','Lamborghini','Lancia','Land Rover','Lexus','Lincoln','Lotus','Maserati','Mazda','Mercedes','MG','Mini','Mitsubishi','Nissan','Opel','Peugeot','Porsche','Renault','Rolls-Royce','Saab','Seat','Škoda','Smart','SsangYong','Subaru','Suzuki','Tesla','Toyota','Volkswagen','Volvo','Autre'];
+  const MOTO_BRANDS=['Aprilia','Bajaj','Benelli','BMW','CFMoto','Daelim','Derbi','Docker','Ducati','Gilera','Harley-Davidson','Hero','Honda','Husqvarna','Kawasaki','Keeway','KTM','Kymco','Lifan','Mash','MBK','Moto Guzzi','Peugeot','Piaggio','Royal Enfield','Suzuki','SYM','TGB','Triumph','TVS','Vespa','Voge','Yamaha','Zontes','Autre'];
   const PHONE_BRANDS=['Apple','Samsung','Xiaomi','Huawei','Oppo','Realme','Infinix','Tecno','Nokia','Google','OnePlus','Autre'];
   function specFields(cat){
     cat=cat||'';
