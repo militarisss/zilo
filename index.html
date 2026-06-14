@@ -585,6 +585,9 @@
   .dcrit-item{background:var(--card);padding:11px 13px;display:flex;flex-direction:column;gap:3px}
   .dcrit-item .k{font-size:10.5px;color:var(--fg-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
   .dcrit-item .v{font-size:14px;font-weight:600;color:var(--fg);display:flex;align-items:center;gap:5px} .dcrit-item .v i{font-size:15px;color:var(--accent)}
+  /* détails par catégorie (formulaire de dépôt) */
+  .spec-h{font-size:13px;font-weight:700;color:var(--fg-soft);margin:6px 0 10px;display:flex;align-items:center;gap:6px} .spec-h i{color:var(--accent)}
+  .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px}
   /* Barre de contact collante (mobile) */
   .dbar{display:none}
   @media(max-width:680px){
@@ -1162,6 +1165,16 @@
   listings[0].video='https://www.w3schools.com/html/mov_bbb.mp4';
   listings[1].video='https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
   listings[8].video='https://www.w3schools.com/html/mov_bbb.mp4';
+  listings[1].specs={marque:'Apple',modele:'iPhone 15',stockage:'128 Go'};
+  listings[2].specs={surface:'92',pieces:'3',chambres:'2',etage:'4',meuble:'Non'};
+  listings[3].specs={marque:'Renault',modele:'Clio V',annee:'2022',km:'28000',carburant:'Essence',boite:'Automatique'};
+  listings[4].specs={surface:'38',pieces:'1',meuble:'Oui'};
+  listings[6].specs={marque:'Dacia',modele:'Sandero Stepway',annee:'2023',km:'15000',carburant:'Essence',boite:'Manuelle'};
+  listings[9].specs={surface:'320',pieces:'5',chambres:'4',meuble:'Non'};
+  listings[10].specs={marque:'Yamaha',modele:'NMAX 125',annee:'2022',km:'6000',cylindree:'125'};
+  listings[11].specs={marque:'Apple MacBook Air M2',ram:'8 Go',stockage:'256 Go'};
+  listings[15].specs={surface:'65',pieces:'2',meuble:'Oui'};
+  listings[16].specs={marque:'Peugeot',modele:'208',annee:'2023',km:'12000',carburant:'Essence',boite:'Manuelle'};
 
   const favs = new Set();
   const active = new Set(['near']);
@@ -1401,6 +1414,7 @@
   function critHTML(l){
     const rows=[];
     rows.push(['Catégorie',(l.cat||'—').replace(/›/g,'·'),'ti-category-2']);
+    if(l.specs) specFields(l.cat).forEach(f=>{ const v=l.specs[f.k]; if(v!=null&&v!=='') rows.push([f.label, v+(f.suffix?(' '+f.suffix):''), f.icon||'ti-point']); });
     if(l.cond) rows.push(['État',l.cond,'ti-sparkles']);
     if(l.city) rows.push(['Localisation',l.city,'ti-map-pin']);
     rows.push(['Type de vendeur',l.pro?'Professionnel':'Particulier',l.pro?'ti-building-store':'ti-user']);
@@ -1650,7 +1664,7 @@
       badge: r.verified?{cls:'deliv',i:'ti-rosette-discount-check',txt:'Vérifié'}:{cls:'ai',i:'ti-clock',txt:'Nouveau'},
       sn:r.seller_name||'Vendeur', pro:!!r.pro, proIcon:r.pro?'ti-building-store':null, av:'#A16207',
       rt:'nouveau', reviews:0, vrf:!!r.verified, views:r.views||0, online:true, desc:r.description||'Pas de description.',
-      tags:['near','recent', r.pro?'pro':'part'], _uid:r.user_id, _id:r.id, cond:r.cond, _price:r.price, video:r.video_url };
+      tags:['near','recent', r.pro?'pro':'part'], _uid:r.user_id, _id:r.id, cond:r.cond, _price:r.price, video:r.video_url, specs:r.specs||null };
   }
   const SEED=listings.slice();
   let dbListings=[];
@@ -2036,6 +2050,66 @@
   }
   document.addEventListener('click',e=>{const m=document.querySelector('.acc-menu');if(m&&!m.contains(e.target)&&!$('#accBtn').contains(e.target))m.remove();});
 
+  // ===== Critères structurés par catégorie =====
+  const CAR_BRANDS=['Dacia','Renault','Peugeot','Volkswagen','Ford','Fiat','Toyota','Hyundai','Kia','Citroën','Mercedes','BMW','Audi','Opel','Nissan','Seat','Skoda','Honda','Mazda','Suzuki','Autre'];
+  const MOTO_BRANDS=['Yamaha','Honda','SYM','Kymco','Piaggio','Vespa','Suzuki','Kawasaki','KTM','Peugeot','Aprilia','Autre'];
+  const PHONE_BRANDS=['Apple','Samsung','Xiaomi','Huawei','Oppo','Realme','Infinix','Tecno','Nokia','Google','OnePlus','Autre'];
+  function specFields(cat){
+    cat=cat||'';
+    if(cat.startsWith('Auto & Moto › Voitures')) return [
+      {k:'marque',label:'Marque',type:'select',options:CAR_BRANDS,icon:'ti-car'},
+      {k:'modele',label:'Modèle',type:'text',icon:'ti-tag'},
+      {k:'annee',label:'Année',type:'number',icon:'ti-calendar'},
+      {k:'km',label:'Kilométrage',type:'number',suffix:'km',icon:'ti-gauge'},
+      {k:'carburant',label:'Carburant',type:'select',options:['Essence','Diesel','Hybride','Électrique','GPL'],icon:'ti-droplet'},
+      {k:'boite',label:'Boîte',type:'select',options:['Manuelle','Automatique'],icon:'ti-settings'},
+    ];
+    if(cat.startsWith('Auto & Moto › Motos')) return [
+      {k:'marque',label:'Marque',type:'select',options:MOTO_BRANDS,icon:'ti-bike'},
+      {k:'modele',label:'Modèle',type:'text',icon:'ti-tag'},
+      {k:'annee',label:'Année',type:'number',icon:'ti-calendar'},
+      {k:'km',label:'Kilométrage',type:'number',suffix:'km',icon:'ti-gauge'},
+      {k:'cylindree',label:'Cylindrée',type:'number',suffix:'cc',icon:'ti-bolt'},
+    ];
+    if(cat.startsWith('Auto & Moto')) return [
+      {k:'marque',label:'Marque',type:'text',icon:'ti-bike'},
+      {k:'annee',label:'Année',type:'number',icon:'ti-calendar'},
+    ];
+    if(cat.startsWith('Immobilier')) return [
+      {k:'surface',label:'Surface',type:'number',suffix:'m²',icon:'ti-ruler'},
+      {k:'pieces',label:'Pièces',type:'number',icon:'ti-layout-grid'},
+      {k:'chambres',label:'Chambres',type:'number',icon:'ti-bed'},
+      {k:'etage',label:'Étage',type:'number',icon:'ti-building'},
+      {k:'meuble',label:'Meublé',type:'select',options:['Non','Oui'],icon:'ti-armchair'},
+    ];
+    if(cat.startsWith('Multimédia › Téléphones')) return [
+      {k:'marque',label:'Marque',type:'select',options:PHONE_BRANDS,icon:'ti-device-mobile'},
+      {k:'modele',label:'Modèle',type:'text',icon:'ti-tag'},
+      {k:'stockage',label:'Stockage',type:'select',options:['16 Go','32 Go','64 Go','128 Go','256 Go','512 Go','1 To'],icon:'ti-database'},
+    ];
+    if(cat.startsWith('Multimédia › Ordinateurs')) return [
+      {k:'marque',label:'Marque',type:'text',icon:'ti-device-laptop'},
+      {k:'ram',label:'Mémoire (RAM)',type:'select',options:['4 Go','8 Go','16 Go','32 Go','64 Go'],icon:'ti-cpu'},
+      {k:'stockage',label:'Stockage',type:'select',options:['128 Go','256 Go','512 Go','1 To','2 To'],icon:'ti-database'},
+    ];
+    if(cat.startsWith('Mode')) return [
+      {k:'taille',label:'Taille',type:'select',options:['XS','S','M','L','XL','XXL','Autre'],icon:'ti-ruler'},
+      {k:'marque',label:'Marque',type:'text',icon:'ti-tag'},
+    ];
+    return [];
+  }
+  function renderSpecs(cat, values){
+    const el=$('#poSpecs'); if(!el) return; values=values||{};
+    const fs=specFields(cat);
+    if(!fs.length){ el.innerHTML=''; return; }
+    el.innerHTML=`<div class="spec-h"><i class="ti ti-list-check"></i> Détails ${cat.split(' › ')[0]}</div><div class="spec-grid">`+
+      fs.map(f=>{ const v=values[f.k]!=null?values[f.k]:'';
+        const inner = f.type==='select'
+          ? `<select data-spec="${f.k}"><option value="">—</option>${f.options.map(o=>`<option ${String(v)===o?'selected':''}>${o}</option>`).join('')}</select>`
+          : `<input data-spec="${f.k}" type="${f.type}" value="${escapeHtml(String(v))}" placeholder="${f.suffix||''}">`;
+        return `<div class="field2"><label>${f.label}${f.suffix?` (${f.suffix})`:''}</label>${inner}</div>`;
+      }).join('')+`</div>`;
+  }
   function openPost(){ if(!me){toast('Crée un compte pour déposer une annonce','ti-lock');openAuth('signup');return;} renderPost(); openModal('post'); }
   let poImgData=null;
   function renderPost(pl){
@@ -2048,6 +2122,7 @@
       <div class="row2f"><div class="field2"><label>Ville</label><select id="poCity">${Object.keys(GEO).map(c=>`<option>${c}</option>`).join('')}</select></div><div class="field2"><label>Quartier</label><select id="poQ"></select></div></div>
       <div class="row2f"><div class="field2"><label>Prix *</label><input id="poPrice" type="number" min="0" placeholder="0"></div><div class="field2"><label>Unité</label><select id="poUnit"><option>dh</option><option>dh/mois</option></select></div></div>
       <div class="field2"><label>État</label><select id="poState"><option>Neuf</option><option selected>Très bon état</option><option>Bon état</option><option>Correct</option></select></div>
+      <div id="poSpecs"></div>
       <div class="field2"><label>Photos ${pl?'(laisse vide pour garder les actuelles)':'(plusieurs possibles)'}</label><input id="poImg" type="file" accept="image/*" multiple></div>
       <div class="field2"><label><i class="ti ti-player-play" style="color:var(--accent)"></i> Vidéo (20s max, optionnel — mode TikTok)</label><input id="poVid" type="file" accept="video/*"></div>
       <button type="button" class="btn-ghost" id="aiFill" style="width:100%;justify-content:center;margin-bottom:12px"><i class="ti ti-sparkles"></i> Remplir avec l'IA depuis la photo</button>
@@ -2058,6 +2133,7 @@
     $('#poCity').onchange=fillQ;
     $('#poBtn').onclick=submitPost;
     $('#aiFill').onclick=aiFillFromPhoto;
+    $('#poCat').onchange=()=>renderSpecs($('#poCat').value);
     if(pl){
       $('#poTitle').value=pl.t||''; $('#poDesc').value=pl.desc||'';
       const co=[...$('#poCat').options].find(o=>o.value===pl.cat); if(co)$('#poCat').value=pl.cat;
@@ -2066,6 +2142,7 @@
       if(pl.cond&&[...$('#poState').options].some(o=>o.value===pl.cond))$('#poState').value=pl.cond;
       if(pl.q&&[...$('#poQ').options].some(o=>o.value===pl.q))$('#poQ').value=pl.q;
     }
+    renderSpecs($('#poCat').value, pl&&pl.specs);
   }
   async function aiFillFromPhoto(){
     const f=$('#poImg').files[0];
@@ -2079,7 +2156,7 @@
       else{
         if(data.title)$('#poTitle').value=data.title;
         if(data.description)$('#poDesc').value=data.description;
-        if(data.category){const opt=[...$('#poCat').options].find(o=>o.value===data.category); if(opt)$('#poCat').value=data.category;}
+        if(data.category){const opt=[...$('#poCat').options].find(o=>o.value===data.category); if(opt){$('#poCat').value=data.category; renderSpecs(data.category);}}
         if(data.price)$('#poPrice').value=Math.round(data.price);
         if(data.condition)$('#poState').value=data.condition;
         toast('Annonce remplie par l\'IA ✨','ti-sparkles');
@@ -2111,6 +2188,8 @@
       try{ const vp=me.id+'/vid_'+Date.now()+'_'+vf.name.replace(/[^\w.\-]+/g,'_'); const up=await sb.storage.from('photos').upload(vp,vf); if(!up.error){ video_url=sb.storage.from('photos').getPublicUrl(vp).data.publicUrl; } }catch(e){}
     }
     const extras={}; if(images.length>1) extras.images=images; if(video_url) extras.video_url=video_url;
+    const specs={}; document.querySelectorAll('#poSpecs [data-spec]').forEach(el=>{ const v=(el.value||'').trim(); if(v!=='') specs[el.getAttribute('data-spec')]=v; });
+    if(Object.keys(specs).length) extras.specs=specs;
     const base={ seller_name:me.name, pro:me.type==='pro', verified:me.verified, title, category:$('#poCat').value, city, quartier:qv||'Centre', price:Number(price)||0, unit:$('#poUnit').value, cond:$('#poState').value, description:desc };
     if(editingId){
       if(images.length) base.image_url=images[0];
