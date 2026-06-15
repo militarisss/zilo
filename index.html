@@ -619,6 +619,10 @@
   .subcat-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 16px;scrollbar-width:none} .subcat-bar::-webkit-scrollbar{display:none}
   .subchip{flex-shrink:0;font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);padding:8px 15px;border-radius:var(--r-pill);cursor:pointer;white-space:nowrap;transition:.15s var(--ease)}
   .subchip:hover{border-color:var(--fg)} .subchip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* avis vérifiés */
+  .thread-rev{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent);padding:7px 11px;border-radius:var(--r-pill);cursor:pointer}
+  .rev-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green,#059669);background:rgba(5,150,105,.12);padding:2px 8px;border-radius:var(--r-pill)} .rev-badge i{font-size:13px}
+  .rev-verified-note{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--green,#059669);background:rgba(5,150,105,.1);padding:9px 12px;border-radius:10px;margin-bottom:10px} .rev-verified-note i{font-size:16px}
   /* mode "page de résultats" : on masque l'accueil */
   body.results .home-only{display:none!important}
   body.results #stories, body.results #reco-sec, body.results #hist-sec{display:none!important}
@@ -2206,19 +2210,19 @@
     await loadListings(); toast('Annonce supprimée','ti-trash');
   }
   // ---- Avis & notes vendeurs ----
-  let revTarget=null, revName='', revStars=0;
+  let revTarget=null, revName='', revStars=0, revVerified=false;
   function stars(n){ const full=Math.round(n); let s=''; for(let k=1;k<=5;k++) s+=`<i class="ti ti-star${k<=full?' on':''}"></i>`; return s; }
-  async function openReviews(uid,name){
+  async function openReviews(uid,name,verified){
     if(!uid){toast('Pas de vendeur réel à noter (annonce de démo)','ti-info-circle');return;}
-    revTarget=uid; revName=name||'Vendeur'; revStars=0;
+    revTarget=uid; revName=name||'Vendeur'; revStars=0; revVerified=!!verified;
     let list=[]; try{ const {data}=await sb.from('reviews').select('*').eq('target_user_id',uid).order('created_at',{ascending:false}); list=data||[]; }catch(e){}
     const avg=list.length?(list.reduce((s,r)=>s+r.rating,0)/list.length):0;
     const canReview = me && me.id!==uid;
     $('#revBody').innerHTML=`
       <h2 class="serif">Avis sur ${escapeHtml(revName)}</h2>
       <div class="rev-summary"><b>${avg?avg.toFixed(1):'—'}</b><span class="stars-show">${stars(avg)}</span><small>${list.length} avis</small></div>
-      ${canReview?`<div class="rev-form"><div class="stars-pick" id="starsPick">${[1,2,3,4,5].map(n=>`<i class="ti ti-star" data-n="${n}"></i>`).join('')}</div><textarea id="revComment" placeholder="Ton avis (optionnel)…"></textarea><button class="btn-primary" id="revSend"><i class="ti ti-send"></i> Publier mon avis</button></div>`:(me?'':'<p class="rev-hint">Connecte-toi pour laisser un avis.</p>')}
-      <div class="rev-list">${list.length?list.map(r=>`<div class="rev-item"><div class="rev-head"><b>${escapeHtml(r.author_name||'Utilisateur')}</b><span class="stars-show">${stars(r.rating)}</span></div>${r.comment?`<p>${escapeHtml(r.comment)}</p>`:''}</div>`).join(''):'<p class="rev-hint">Aucun avis pour l\'instant.</p>'}</div>`;
+      ${canReview?`<div class="rev-form">${revVerified?'<div class="rev-verified-note"><i class="ti ti-rosette-discount-check"></i> Avis suite à un échange — il sera marqué « Achat vérifié ».</div>':''}<div class="stars-pick" id="starsPick">${[1,2,3,4,5].map(n=>`<i class="ti ti-star" data-n="${n}"></i>`).join('')}</div><textarea id="revComment" placeholder="Ton avis (optionnel)…"></textarea><button class="btn-primary" id="revSend"><i class="ti ti-send"></i> Publier mon avis</button></div>`:(me?'':'<p class="rev-hint">Connecte-toi pour laisser un avis.</p>')}
+      <div class="rev-list">${list.length?list.map(r=>`<div class="rev-item"><div class="rev-head"><b>${escapeHtml(r.author_name||'Utilisateur')}</b>${r.verified?'<span class="rev-badge"><i class="ti ti-rosette-discount-check"></i> Achat vérifié</span>':''}<span class="stars-show">${stars(r.rating)}</span></div>${r.comment?`<p>${escapeHtml(r.comment)}</p>`:''}</div>`).join(''):'<p class="rev-hint">Aucun avis pour l\'instant.</p>'}</div>`;
     if(canReview){
       $('#starsPick').querySelectorAll('i').forEach(st=>st.onclick=()=>{revStars=+st.dataset.n; $('#starsPick').querySelectorAll('i').forEach(x=>x.classList.toggle('on',+x.dataset.n<=revStars));});
       $('#revSend').onclick=submitReview;
@@ -2228,7 +2232,7 @@
   async function submitReview(){
     if(!me||!revTarget)return;
     if(!revStars){toast('Choisis une note (étoiles)','ti-star');return;}
-    const {error}=await sb.from('reviews').upsert({target_user_id:revTarget, author_id:me.id, author_name:me.name, rating:revStars, comment:$('#revComment').value.trim()},{onConflict:'target_user_id,author_id'});
+    const {error}=await sb.from('reviews').upsert({target_user_id:revTarget, author_id:me.id, author_name:me.name, rating:revStars, comment:$('#revComment').value.trim(), verified:revVerified},{onConflict:'target_user_id,author_id'});
     if(error){toast('Erreur : '+error.message,'ti-alert-triangle');return;}
     toast('Merci pour ton avis ✓','ti-star'); openReviews(revTarget,revName);
   }
@@ -2653,7 +2657,7 @@
     if(!c){ const r=await sb.from('conversations').select('*').eq('id',id).single(); c=r.data; }
     if(!c) return;
     openConv=c; renderConvList();
-    $('#chatThread').innerHTML=`<div class="thread-head"><button class="thread-back" onclick="backToList()" aria-label="Retour"><i class="ti ti-arrow-left"></i></button><div><b>${escapeHtml(otherName(c))}</b><small>${escapeHtml(c.listing_title||'')}</small></div></div><div class="thread-msgs" id="threadMsgs"></div><div class="thread-input"><input id="msgInput" placeholder="Écris un message…"><button onclick="sendMessage()" aria-label="Envoyer"><i class="ti ti-send"></i></button></div>`;
+    $('#chatThread').innerHTML=`<div class="thread-head"><button class="thread-back" onclick="backToList()" aria-label="Retour"><i class="ti ti-arrow-left"></i></button><div style="flex:1;min-width:0"><b>${escapeHtml(otherName(c))}</b><small>${escapeHtml(c.listing_title||'')}</small></div><button class="thread-rev" onclick="reviewFromConv()" title="Laisser un avis"><i class="ti ti-star"></i> Avis</button></div><div class="thread-msgs" id="threadMsgs"></div><div class="thread-input"><input id="msgInput" placeholder="Écris un message…"><button onclick="sendMessage()" aria-label="Envoyer"><i class="ti ti-send"></i></button></div>`;
     $('#chat').classList.add('thread-open');
     $('#msgInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
     const {data}=await sb.from('messages').select('*').eq('conversation_id',id).order('created_at');
@@ -2662,6 +2666,7 @@
     if(!$('#chat').classList.contains('open')) openModal('chat');
   }
   function backToList(){ $('#chat').classList.remove('thread-open'); openConv=null; renderConvList(); }
+  function reviewFromConv(){ if(!openConv||!me) return; const uid=openConv.buyer_id===me.id?openConv.seller_id:openConv.buyer_id; if(!uid||uid===me.id){toast('Impossible de te noter toi-même','ti-info-circle');return;} openReviews(uid, otherName(openConv), true); }
   const escapeHtml=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const msgHTML=m=>{
     const b=m.body||'', mine=m.sender_id===me.id;
