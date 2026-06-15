@@ -2244,12 +2244,27 @@
       <div class="auth-or"><span>ou par email</span></div>
       <div class="field2"><label>Email</label><input id="liEmail" type="email" placeholder="toi@email.com"></div>
       <div class="field2"><label>Mot de passe</label><input id="liPass" type="password" placeholder="••••••••"></div>
+      <p class="alt" style="text-align:right;margin:-6px 0 12px"><a id="liForgot" style="cursor:pointer">Mot de passe oublié ?</a></p>
       <button class="btn-primary" id="liBtn"><i class="ti ti-login-2"></i> Se connecter</button>
       <p class="alt">Pas encore de compte ? <a id="toSignup">Créer un compte</a></p>`;
     if(signup){
       $('#accType').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#accType').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
       $('#toLogin').onclick=()=>renderAuth('login'); $('#suBtn').onclick=doSignup;
-    } else { $('#toSignup').onclick=()=>renderAuth('signup'); $('#liBtn').onclick=doLogin; }
+    } else { $('#toSignup').onclick=()=>renderAuth('signup'); $('#liBtn').onclick=doLogin; const lf=$('#liForgot'); if(lf) lf.onclick=forgotPassword; }
+  }
+  async function forgotPassword(){
+    const email=(($('#liEmail')&&$('#liEmail').value)||'').trim().toLowerCase();
+    if(!email){ toast('Entre ton email d\'abord','ti-mail'); if($('#liEmail'))$('#liEmail').focus(); return; }
+    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error){ toast(error.message,'ti-alert-triangle'); return; }
+    closeModal(); toast('Email de réinitialisation envoyé ✓ Vérifie ta boîte mail','ti-mail');
+  }
+  function openResetPassword(){
+    $('#authBody').innerHTML=`<h2 class="serif">Nouveau mot de passe</h2><p class="sub">Choisis un nouveau mot de passe pour ton compte.</p>
+      <div class="field2"><label>Nouveau mot de passe</label><input id="npPass" type="password" placeholder="••••••••"></div>
+      <button class="btn-primary" id="npBtn"><i class="ti ti-lock-check"></i> Mettre à jour</button>`;
+    openModal('auth');
+    $('#npBtn').onclick=async()=>{ const p=$('#npPass').value; if(!p||p.length<6){toast('6 caractères minimum','ti-alert-triangle');return;} const {error}=await sb.auth.updateUser({password:p}); if(error){toast(error.message,'ti-alert-triangle');return;} closeModal(); toast('Mot de passe mis à jour ✓','ti-check'); await refreshMe(); };
   }
   async function doSignup(){
     const name=$('#suName').value.trim(), email=$('#suEmail').value.trim().toLowerCase(), pass=$('#suPass').value;
@@ -2678,7 +2693,7 @@
 
   render();
   refreshMe();
-  sb.auth.onAuthStateChange(()=>refreshMe());
+  sb.auth.onAuthStateChange((event)=>{ if(event==='PASSWORD_RECOVERY'){ openResetPassword(); return; } refreshMe(); });
   loadListings();
   renderHistory();
   if(LANG==='ar'){ document.documentElement.dir='rtl'; document.documentElement.lang='ar'; const _ll=document.getElementById('langLbl'); if(_ll)_ll.textContent='FR'; setTimeout(()=>applyAr(document.body),40); }
