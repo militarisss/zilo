@@ -1239,6 +1239,17 @@
   listings[11].specs={marque:'Apple MacBook Air M2',ram:'8 Go',stockage:'256 Go'};
   listings[15].specs={surface:'65',pieces:'2',meuble:'Oui'};
   listings[16].specs={marque:'Peugeot',modele:'208',annee:'2023',km:'12000',carburant:'Essence',boite:'Manuelle'};
+  // Multi-villes : on répartit des annonces démo sur plusieurs villes (le reste sur Casablanca)
+  [
+    [9,'Rabat','Agdal',34.0009,-6.8496],
+    [10,'Marrakech','Guéliz',31.6340,-8.0089],
+    [11,'Tanger','Malabata',35.7720,-5.7900],
+    [12,'Agadir','Founty',30.4100,-9.5800],
+    [13,'Fès','Ville Nouvelle',34.0380,-5.0000],
+    [14,'Rabat','Hay Riad',33.9700,-6.8700],
+    [15,'Marrakech','Hivernage',31.6230,-7.9950],
+    [16,'Tanger','Iberia',35.7700,-5.8050],
+  ].forEach(function(a){ var l=listings[a[0]]; if(!l)return; l.city=a[1]; l.q=a[2]; l.lat=a[3]; l.lng=a[4]; l.loc=a[2]+' · '+a[1]; });
 
   const favs = new Set();
   const active = new Set(['near']);
