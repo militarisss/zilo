@@ -619,6 +619,11 @@
   .subcat-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 16px;scrollbar-width:none} .subcat-bar::-webkit-scrollbar{display:none}
   .subchip{flex-shrink:0;font-size:13px;font-weight:600;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);padding:8px 15px;border-radius:var(--r-pill);cursor:pointer;white-space:nowrap;transition:.15s var(--ease)}
   .subchip:hover{border-color:var(--fg)} .subchip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* vérification numéro (WhatsApp) */
+  .pv-box{border:1px solid var(--border);border-radius:14px;padding:14px;margin:4px 0 6px;background:var(--muted)}
+  .pv-head{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin-bottom:10px} .pv-head i{color:#25D366;font-size:18px}
+  .pv-done{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--green,#059669)} .pv-done i{font-size:20px}
+  .pv-wait{margin-top:10px;font-size:12.5px;color:var(--fg-soft);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px} .pv-wait i{color:var(--accent)}
   /* avis vérifiés */
   .thread-rev{flex-shrink:0;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent);padding:7px 11px;border-radius:var(--r-pill);cursor:pointer}
   .rev-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--green,#059669);background:rgba(5,150,105,.12);padding:2px 8px;border-radius:var(--r-pill)} .rev-badge i{font-size:13px}
@@ -1828,7 +1833,7 @@
     const uid=session.user.id, email=session.user.email;
     let prof=null; try{ const r=await sb.from('profiles').select('*').eq('id',uid).single(); prof=r.data; }catch(e){}
     const V=!!(prof&&prof.verified);
-    me={ id:uid, email, name:(prof&&prof.name)||email.split('@')[0], type:(prof&&prof.type)||'part', verified:V, vrf:V, admin:!!(prof&&prof.is_admin) };
+    me={ id:uid, email, name:(prof&&prof.name)||email.split('@')[0], type:(prof&&prof.type)||'part', verified:V, vrf:V, admin:!!(prof&&prof.is_admin), phoneVerified:!!(prof&&prof.phone_verified) };
     updateAccountUI(); afterAuth();
   }
   const fallbackImg=cat=>CAT_IMG[Object.keys(CAT_IMG).find(k=>(cat||'').startsWith(k))||'Multimédia'];
@@ -2125,12 +2130,48 @@
     $('#profileBody').innerHTML=`<h2 class="serif">Mon profil</h2><p class="sub">${escapeHtml(me.email)}</p>
       <div class="seg" id="prType"><button class="${me.type!=='pro'?'on':''}" data-type="part"><i class="ti ti-user"></i> Particulier</button><button class="${me.type==='pro'?'on':''}" data-type="pro"><i class="ti ti-building-store"></i> Professionnel</button></div>
       <div class="field2"><label>Nom complet / Raison sociale</label><input id="prName" value="${escapeHtml(me.name)}"></div>
+      <div class="pv-box">
+        ${me.phoneVerified
+          ? `<div class="pv-done"><i class="ti ti-rosette-discount-check"></i> <b>Numéro vérifié</b> · ton profil inspire confiance</div>`
+          : `<div class="pv-head"><i class="ti ti-brand-whatsapp"></i> Vérifie ton numéro (gratuit, via WhatsApp)</div>
+             <div class="row2f"><div class="field2"><label>Indicatif</label><input id="prcc" value="212" style="text-align:center"></div><div class="field2" style="flex:2"><label>Numéro</label><input id="prphone" type="tel" placeholder="6 12 34 56 78"></div></div>
+             <button class="btn-primary" id="pvSend" style="width:100%;justify-content:center"><i class="ti ti-brand-whatsapp"></i> Vérifier via WhatsApp</button>
+             <div id="pvWait" hidden></div>`}
+      </div>
       <div class="field2"><label>Nouveau mot de passe (optionnel)</label><input id="prPass" type="password" placeholder="laisse vide pour ne rien changer"></div>
       <button class="btn-primary" id="prSave" style="width:100%;justify-content:center"><i class="ti ti-check"></i> Enregistrer</button>
       <p class="alt" style="margin-top:22px"><a id="prDel" style="color:var(--danger);cursor:pointer"><i class="ti ti-trash"></i> Supprimer mon compte définitivement</a></p>`;
     $('#prType').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#prType').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
     $('#prSave').onclick=saveProfile; $('#prDel').onclick=deleteAccount;
+    const pvb=$('#pvSend'); if(pvb) pvb.onclick=startPhoneVerify;
     openModal('profile');
+  }
+  // ===== Vérification du numéro via WhatsApp (gratuit : l'utilisateur nous écrit) =====
+  const WA_BUSINESS='212XXXXXXXXX'; // ← À REMPLACER par ton numéro WhatsApp Business (format international, sans +)
+  let pvPoll=null, pvTries=0;
+  function genCode(){ const a=new Uint32Array(1); crypto.getRandomValues(a); return 'ZILO-'+(1000+(a[0]%9000)); }
+  async function startPhoneVerify(){
+    if(!me) return;
+    const cc=($('#prcc').value||'212').replace(/\D/g,'');
+    const raw=($('#prphone').value||'').replace(/\D/g,'').replace(/^0+/,'');
+    if(raw.length<6){ toast('Entre un numéro valide','ti-alert-triangle'); return; }
+    const phone=cc+raw, code=genCode();
+    try{ await sb.from('phone_verifications').upsert({user_id:me.id, phone, code, verified:false},{onConflict:'user_id'}); }catch(e){}
+    const msg=`Bonjour, je verifie mon compte Zilo. Code : ${code}`;
+    const w=$('#pvWait');
+    if(/x/i.test(WA_BUSINESS)){
+      if(w){ w.hidden=false; w.innerHTML=`<div class="pv-wait"><i class="ti ti-info-circle"></i> Le numéro WhatsApp business n'est pas encore configuré.<br>Ton code de test : <b>${code}</b></div>`; }
+      toast('À configurer : ton numéro WhatsApp business','ti-info-circle'); return;
+    }
+    window.open(`https://wa.me/${WA_BUSINESS}?text=${encodeURIComponent(msg)}`,'_blank');
+    if(w){ w.hidden=false; w.innerHTML=`<div class="pv-wait"><i class="ti ti-loader-2"></i> En attente de ton message WhatsApp (code <b>${code}</b>)…<br><button class="btn-ghost" id="pvRecheck" style="margin-top:8px;width:auto"><i class="ti ti-refresh"></i> J'ai envoyé, vérifier</button></div>`; const rb=$('#pvRecheck'); if(rb) rb.onclick=checkPhoneVerified; }
+    pvTries=0; if(pvPoll) clearInterval(pvPoll); pvPoll=setInterval(()=>{ if(++pvTries>24){clearInterval(pvPoll);pvPoll=null;return;} checkPhoneVerified(); },5000);
+  }
+  async function checkPhoneVerified(){
+    if(!me) return;
+    try{ const r=await sb.from('phone_verifications').select('verified').eq('user_id',me.id).single();
+      if(r.data&&r.data.verified){ if(pvPoll){clearInterval(pvPoll);pvPoll=null;} await refreshMe(); toast('Numéro vérifié ✓','ti-rosette-discount-check'); if(openId==='profile') openProfile(); }
+    }catch(e){}
   }
   async function saveProfile(){
     const name=$('#prName').value.trim(), type=$('#prType .on').dataset.type, pass=$('#prPass').value;
