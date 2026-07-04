@@ -993,7 +993,7 @@
         <ul class="vlist">
           <li><i class="ti ti-check"></i> Badge vérifié vert sur toutes tes annonces</li>
           <li><i class="ti ti-check"></i> Vérification d'identité sécurisée</li>
-          <li><i class="ti ti-check"></i> Paiement protégé activé d'office</li>
+          <li><i class="ti ti-check"></i> Priorité dans les résultats de recherche</li>
         </ul>
         <a class="btn-ghost" href="#" data-auth><i class="ti ti-shield-check"></i> Vérifier mon identité</a>
       </div>
@@ -1018,7 +1018,7 @@
       <p>On a repensé chaque étape : la publication, la confiance, la remise en main propre. Sans friction, sans arnaque.</p>
       <div class="feats">
         <div><div class="feat-i"><i class="ti ti-camera-ai"></i></div><h4>Publie en 30 secondes</h4><p>Prends une photo. L'IA écrit le titre, la description, range dans la bonne catégorie et propose un prix juste.</p></div>
-        <div><div class="feat-i"><i class="ti ti-shield-check"></i></div><h4>Paiement protégé</h4><p>Argent bloqué jusqu'à réception, livraison intégrée et identité des vendeurs vérifiée. Zéro mauvaise surprise.</p></div>
+        <div><div class="feat-i"><i class="ti ti-shield-check"></i></div><h4>Transaction en confiance</h4><p>Vendeurs notés et vérifiés, échange en main propre dans un lieu public. Tu vérifies l'article avant de payer. Zéro mauvaise surprise.</p></div>
         <div><div class="feat-i"><i class="ti ti-walk"></i></div><h4>Remise en main propre</h4><p>Réserve un créneau dans l'app et retrouve le vendeur à moins de 10 minutes à pied. Trajet et distance affichés.</p></div>
       </div>
     </div>
@@ -1622,13 +1622,13 @@
       </div>
       <div class="dactions">
         <button class="btn-primary" onclick="makeOffer(${i})"><i class="ti ti-message-2"></i> Faire une offre</button>
-        <button class="btn-ghost" onclick="toast('Paiement protégé (démo)','ti-shield-check')"><i class="ti ti-shopping-bag"></i> Acheter</button>
+        <button class="btn-ghost" onclick="reserveItem(${i})"><i class="ti ti-map-pin"></i> Réserver</button>
       </div>
       <button class="btn-ghost dmsg" onclick="openChatFor(${i})"><i class="ti ti-message-circle"></i> Contacter le vendeur</button>
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="openReviews(listings[${i}]._uid, listings[${i}].sn)"><i class="ti ti-star"></i> Avis sur le vendeur</button>
       <button class="btn-ghost dmsg" style="margin-top:8px" onclick="shareListing(${i})"><i class="ti ti-share-3"></i> Partager l'annonce</button>
       ${(l._uid&&me&&l._uid!==me.id)?`<button class="btn-ghost dmsg" style="margin-top:8px" onclick="toggleFollow(${i},this)"><i class="ti ${following.has(l._uid)?'ti-user-check':'ti-user-plus'}"></i> ${following.has(l._uid)?'Vendeur suivi':'Suivre le vendeur'}</button>`:''}
-      <div class="dpay"><i class="ti ti-lock"></i> Paiement protégé · argent versé au vendeur à réception</div>
+      <div class="dpay"><i class="ti ti-shield-check"></i> Remise en main propre · vérifie l'article avant de payer, privilégie un lieu public</div>
       ${critHTML(l)}
       <div class="dmap"><i class="ti ti-map-pin-filled pinx"></i><span class="walk"><i class="ti ti-walk"></i> ${l.loc.split('· ')[1]||'tout près'} · ~8 min à pied</span></div>
       <button class="dreport" onclick="reportListing(${i})"><i class="ti ti-flag"></i> Signaler cette annonce</button>${(l._uid&&me&&l._uid!==me.id)?`<button class="dreport" style="margin-left:16px" onclick="toggleBlock(${i})"><i class="ti ti-ban"></i> Bloquer le vendeur</button>`:''}
@@ -2699,6 +2699,14 @@
   async function sendMessage(){ const inp=$('#msgInput'); if(!inp) return; const body=inp.value.trim(); if(!body) return; inp.value=''; await sendRaw(body); }
   async function acceptOffer(v){ await sendRaw('__ACCEPT__'+v); toast('Offre acceptée ✓','ti-circle-check'); }
   async function declineOffer(){ await sendRaw('__DECLINE__'); }
+  async function reserveItem(i){
+    const l=listings[i];
+    if(!me){toast('Connecte-toi pour réserver','ti-lock');openAuth('login');return;}
+    if(!l._uid){toast('Annonce de démonstration','ti-info-circle');return;}
+    if(l._uid===me.id){toast('C\'est ta propre annonce','ti-info-circle');return;}
+    await openChatFor(i);
+    toast('Propose un rendez-vous en main propre au vendeur 📍','ti-map-pin');
+  }
   async function makeOffer(i){
     const l=listings[i];
     if(!me){toast('Connecte-toi','ti-lock');openAuth('login');return;}
